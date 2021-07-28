@@ -1,10 +1,16 @@
 from mysql.connector import connect, Error
-import json
+import json, datetime
 
+def connection():
+    connect(
+        host="localhost",
+        user='admin',
+        password='Plantchecker1!',
+        database='plantcheckerDB'
+    )
 
 def userLogin():
     pass
-
 
 def checkUserPlants(user):
     userid = user
@@ -28,26 +34,23 @@ def checkUserPlants(user):
     except Error as e:
         print(e)
 
-
 def addUserPlants(login, plantname, plantspec, lastwatering):
-    pass
-    # try:
-    #     with connect(
-    #             host="localhost",
-    #             user='admin',
-    #             password='Plantchecker1!',
-    #             database='plantcheckerDB'
-    #     ) as connection:
-    #         table_query = """
-    #             select id from users
-    #             where login = login
-    #         """
-    #
-    #         with connection.cursor() as cursor:
-    #             user_id = cursor.execute(table_query)
-    #             print(user_id)
-    # except Error as e:
-    #     print(e)
+    with connect(
+                host="localhost",
+                user='admin',
+                password='Plantchecker1!',
+                database='plantcheckerDB'
+        ) as connection:
+            with connection.cursor() as cursor:
+                        cursor.execute('select id from users where login = "linlynx"')
+                        user_id = cursor.fetchone()[0]
+    with open ('plantspecies.json','r') as plantspecies:
+
+    print(plantname)
+    print(user_id)
+    print(plantspec)
+    print(lastwatering)
+
 
 
 def addUserWater():
@@ -59,22 +62,21 @@ def addUserFertils():
 def addUser():
     pass
 
-# print(addUserPlants('linlynx','Монстера на кухне','Монстера','26.07.2021'))
-try:
-    with connect(
-            host="localhost",
-            user='admin',
-            password='Plantchecker1!',
-            database='plantcheckerDB'
-    ) as connection:
-        table_query = """ 
-                select id from users
+# print(str(datetime.date.today()))
 
-            """
-
-        with connection.cursor() as cursor:
-            cursor.execute('select id from users where login = "linlynx"')
-            print(cursor.fetchone())
-
-except Error as e:
-    print(e)
+addUserPlants('linlynx','Монстера на кухне','Монстера','26.07.2021')
+# try:
+#     with connect(
+#             host="localhost",
+#             user='admin',
+#             password='Plantchecker1!',
+#             database='plantcheckerDB'
+#     ) as connection:
+#
+#         with connection.cursor() as cursor:
+#             cursor.execute('select id from users where login = "linlynx"')
+#             user_id = cursor.fetchone()[0]
+#             print(user_id)
+#
+# except Error as e:
+#     print(e)
