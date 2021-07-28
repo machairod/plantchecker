@@ -1,0 +1,138 @@
+{
+    "монстера": {
+        "light": 2,
+        "water_winter": 14,
+        "water_summer": 7,
+        "fertile_winter": 60,
+        "fertile_summer": 14,
+        "spraying": true
+    },
+    "фикус бенджамина": {
+        "light": 3,
+        "water_winter": 7,
+        "water_summer": 4,
+        "fertile_winter": 30,
+        "fertile_summer": 14,
+        "spraying": true
+    },
+    "фикус пумила": {
+        "light": 3,
+        "water_winter": 7,
+        "water_summer": 4,
+        "fertile_winter": 30,
+        "fertile_summer": 14,
+        "spraying": true
+    },
+    "эпипренум": {
+        "light": 2,
+        "water_winter": 14,
+        "water_summer": 5,
+        "fertile_winter": 30,
+        "fertile_summer": 14,
+        "spraying": false
+    },
+    "спатифиллум": {
+        "light": 2,
+        "water_winter": 7,
+        "water_summer": 3,
+        "fertile_winter": 40,
+        "fertile_summer": 14,
+        "spraying": true
+    },
+    "замиокулькас": {
+        "light": 2,
+        "water_winter": 30,
+        "water_summer": 14,
+        "fertile_winter": 60,
+        "fertile_summer": 30,
+        "spraying": false
+    },
+    "шеффлера": {
+        "light": 3,
+        "water_winter": 10,
+        "water_summer": 5,
+        "fertile_winter": 60,
+        "fertile_summer": 14,
+        "spraying": true
+    },
+    "толстянка": {
+        "light": 3,
+        "water_winter": 30,
+        "water_summer": 7,
+        "fertile_winter": 60,
+        "fertile_summer": 14,
+        "spraying": false
+    },
+    "хлорофитум": {
+        "light": 3,
+        "water_winter": 7,
+        "water_summer": 3,
+        "fertile_winter": 60,
+        "fertile_summer": 14,
+        "spraying": true
+    },
+    "дипсис": {
+        "light": 3,
+        "water_winter": 7,
+        "water_summer": 3,
+        "fertile_winter": 90,
+        "fertile_summer": 30,
+        "spraying": true
+    },
+    "фиттония": {
+        "light": 3,
+        "water_winter": 7,
+        "water_summer": 3,
+        "fertile_winter": 30,
+        "fertile_summer": 15,
+        "spraying": true
+    },
+    "калла": {
+        "light": 3,
+        "water_winter": 30,
+        "water_summer": 4,
+        "fertile_winter": 90,
+        "fertile_summer": 14,
+        "spraying": true
+    },
+    "сансеверия": {
+        "light": 2,
+        "water_winter": 30,
+        "water_summer": 7,
+        "fertile_winter": 30,
+        "fertile_summer": 14,
+        "spraying": false
+    },
+    "алоэ": {
+        "light": 4,
+        "water_winter": 21,
+        "water_summer": 7,
+        "fertile_winter": 90,
+        "fertile_summer": 30,
+        "spraying": false
+    },
+    "кротон": {
+        "light": 3,
+        "water_winter": 4,
+        "water_summer": 2,
+        "fertile_winter": 30,
+        "fertile_summer": 10,
+        "spraying": true
+    },
+    "камнеломка": {
+        "light": 1,
+        "water_winter": 14,
+        "water_summer": 7,
+        "fertile_winter": 60,
+        "fertile_summer": 30,
+        "spraying": true
+    },
+    "солейролия": {
+        "light": 3,
+        "water_winter": 7,
+        "water_summer": 3,
+        "fertile_winter": 60,
+        "fertile_summer": 14,
+        "spraying": true
+    }
+}
