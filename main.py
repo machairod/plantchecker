@@ -78,7 +78,7 @@ def addUserFertils():
 def addUser():
     pass
 
-print(addUserPlants('linlynx','Большая монстера','Монстера','26.07.2021'))
+print(addUserPlants('linlynx','Спатифиллум','спатифиллум','30.07.2021'))
 
 #
 # try:
