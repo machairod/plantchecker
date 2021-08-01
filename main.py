@@ -26,6 +26,20 @@ def checkUserPlants(user):
     except Error as e:
         print(e)
 
+def userPlantCard(plant_id):
+    with connect(
+            host="localhost",
+            user='admin',
+            password='Plantchecker1!',
+            database='plantcheckerDB'
+    ) as connection:
+        with connection.cursor() as cursor:
+            try:
+                cursor.execute('select * from userplants where id="{id}"'.format(id=plant_id))
+                plant_card = cursor.fetchall()
+                return plant_card
+            except Error as e: print(e)
+
 def addUserPlants(login, plant_name, plant_spec, last_water):
     plant_data={}
     with open('plantspecies.json', 'r') as plantspecies:
@@ -78,7 +92,8 @@ def addUserFertils():
 def addUser():
     pass
 
-print(addUserPlants('linlynx','Спатифиллум','спатифиллум','30.07.2021'))
+# print(addUserPlants('linlynx','Фиттония','фиттония','31.07.2021'))
+print(userPlantCard(7))
 
 #
 # try:
