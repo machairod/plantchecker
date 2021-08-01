@@ -26,7 +26,7 @@ def checkUserPlants(user):
     except Error as e:
         print(e)
 
-def userPlantCard(plant_id):
+def userPlantCard(plant_id=None,plantname=''):
     with connect(
             host="localhost",
             user='admin',
@@ -35,8 +35,13 @@ def userPlantCard(plant_id):
     ) as connection:
         with connection.cursor() as cursor:
             try:
-                cursor.execute('select * from userplants where id="{id}"'.format(id=plant_id))
-                plant_card = cursor.fetchall()
+                cursor.execute("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = 'plantcheckerDB' AND TABLE_NAME = 'userplants';")
+                columnlist = [('').join(x) for x in cursor.fetchall()]
+                plant_card={}
+                for x in columnlist:
+                    cursor.execute('select {column} from userplants where id="{id}" or plantname="{name}"'.format(column = x, id=plant_id, name=plantname))
+                    plant_card[x] = cursor.fetchone()[0]
+
                 return plant_card
             except Error as e: print(e)
 
@@ -47,11 +52,13 @@ def addUserPlants(login, plant_name, plant_spec, last_water):
     plant_spec = plant_spec.lower()
     if plant_spec not in plant_dict:
         return 'Не опознали вид растения'
+
     last_water = [int(x) for x in last_water.split('.')]
     if int(last_water[0])>31 or int(last_water[1])>12 or len(last_water)>3:
         return 'Некорректная дата'
     last_water.reverse()
     plant_data["last_water"] = datetime.date(last_water[0],last_water[1],last_water[2])
+
     plant_data["last_fertile"] = plant_data["last_water"]
     plant_data['plantspec'] = plant_spec
     plant_data['light'] = plant_dict[plant_spec]['light']
@@ -93,7 +100,7 @@ def addUser():
     pass
 
 # print(addUserPlants('linlynx','Фиттония','фиттония','31.07.2021'))
-print(userPlantCard(7))
+print(userPlantCard(plantname='Кротон'))
 
 #
 # try:
