@@ -100,19 +100,19 @@ def addUser():
     pass
 
 # print(addUserPlants('linlynx','Фиттония','фиттония','31.07.2021'))
-print(userPlantCard(plantname='Кротон'))
+# print(userPlantCard(plantname='Кротон'))
 
-#
-# try:
-#     with connect(
-#             host="localhost",
-#             user='admin',
-#             password='Plantchecker1!',
-#             database='plantcheckerDB'
-#     ) as connection:
-#
-#         with connection.cursor() as cursor:
-#             cursor.execute('alter table userplants modify column last_fertile date')
-#             connection.commit()
-#
-# except Error as e: print(e)
+
+try:
+    with connect(
+            host="localhost",
+            user='admin',
+            password='Plantchecker1!',
+            database='plantcheckerDB'
+    ) as connection:
+
+        with connection.cursor() as cursor:
+            cursor.execute('alter table userplants add column next_fertile date')
+            connection.commit()
+
+except Error as e: print(e)
