@@ -90,8 +90,29 @@ def addUserPlants(login, plant_name, plant_spec, last_water):
                 return('Растение добавлено в ваш список')
             except Error as e: print(e)
 
-def addUserWater():
-    pass
+def addUserWater(last_water, plant_id=None, plantname=""):
+    if len(last_water)==0:
+        return ('Неправильная дата')
+    if plant_id != None:
+        with connect(
+                host="localhost",
+                user='admin',
+                password='Plantchecker1!',
+                database='plantcheckerDB'
+        ) as connection:
+
+            with connection.cursor() as cursor:
+                try:
+                    cursor.execute('select * from userplants where id = "{}"'.format(id = plant_id))
+                    plant = cursor.fetchall()
+                    print(plant)
+
+                except Error as e: print(e)
+
+
+    if len(plantname)>0:
+        pass
+
 
 def addUserFertils():
     pass
@@ -100,19 +121,19 @@ def addUser():
     pass
 
 # print(addUserPlants('linlynx','Фиттония','фиттония','31.07.2021'))
-# print(userPlantCard(plantname='Кротон'))
-
-
-try:
-    with connect(
-            host="localhost",
-            user='admin',
-            password='Plantchecker1!',
-            database='plantcheckerDB'
-    ) as connection:
-
-        with connection.cursor() as cursor:
-            cursor.execute('alter table userplants add column next_fertile date')
-            connection.commit()
-
-except Error as e: print(e)
+print(userPlantCard(plantname='Кротон'))
+# 
+#
+# try:
+#     with connect(
+#             host="localhost",
+#             user='admin',
+#             password='Plantchecker1!',
+#             database='plantcheckerDB'
+#     ) as connection:
+#
+#         with connection.cursor() as cursor:
+#             cursor.execute('alter table userplants add column next_fertile date')
+#             connection.commit()
+#
+# except Error as e: print(e)
