@@ -4,8 +4,7 @@ import json, datetime
 def userLogin():
     pass
 
-def checkUserPlants(user):
-    userid = user
+def checkUserPlants(login):
     try:
         with connect(
                 host="localhost",
@@ -13,15 +12,16 @@ def checkUserPlants(user):
                 password='Plantchecker1!',
                 database='plantcheckerDB'
         ) as connection:
-            table_query = """ 
-                select * from userplants
-                where user = userid
-            """
-
             with connection.cursor() as cursor:
-                cursor.execute(table_query)
-                connection.commit()
+                cursor.execute('select id from users where login = "{login}"'.format(login=login))
+                id = cursor.fetchone()
 
+                if len(id) == 0:
+                    return ("Мы вас не узнали. Укажите ваш логин")
+                cursor.execute('select * from userplants where user = "{id}"'.format(id = id[0]))
+                user_plants = cursor.fetchall()
+
+                return user_plants
 
     except Error as e:
         print(e)
@@ -45,7 +45,7 @@ def userPlantCard(plant_id=None,plantname=''):
                 return plant_card
             except Error as e: print(e)
 
-def addUserPlants(login, plant_name, plant_spec, last_water):
+def addUserPlants(login, plant_name, plant_spec, last_watering=None):
     plant_data={}
     with open('plantspecies.json', 'r') as plantspecies:
         plant_dict = json.load(plantspecies)
@@ -53,13 +53,14 @@ def addUserPlants(login, plant_name, plant_spec, last_water):
     if plant_spec not in plant_dict:
         return 'Не опознали вид растения'
 
-    last_water = [int(x) for x in last_water.split('.')]
-    if int(last_water[0])>31 or int(last_water[1])>12 or len(last_water)>3:
-        return 'Некорректная дата'
-    last_water.reverse()
-    plant_data["last_water"] = datetime.date(last_water[0],last_water[1],last_water[2])
+    if type(last_watering) == str and (len(last_watering)== 10) and last_watering.find('.')==2:
+        plant_data["last_watering"] = datetime.datetime.strptime(last_watering,"%d.%m.%Y").date()
+    elif last_watering == None:
+        plant_data['last_watering'] = datetime.date.today()
+    else:
+        return('Неправильный формат даты. Используйте "dd.mm.yyyy".')
 
-    plant_data["last_fertile"] = plant_data["last_water"]
+    plant_data["last_fertile"] = plant_data["last_watering"]
     plant_data['plantspec'] = plant_spec
     plant_data['light'] = plant_dict[plant_spec]['light']
     plant_data['water_freq_summer'] = plant_dict[plant_spec]['water_summer']
@@ -69,7 +70,7 @@ def addUserPlants(login, plant_name, plant_spec, last_water):
     plant_data["spraying"] = plant_dict[plant_spec]['spraying']
     plant_data["plantname"] = plant_name
 
-    add_plant = "insert into userplants (user, plantname, plantspec, last_water, last_fertile, water_freq_summer, water_freq_winter, fertile_freq_summer, fertile_freq_winter, spraying, light) values (%(user)s, %(plantname)s, %(plantspec)s, %(last_water)s, %(last_fertile)s, %(water_freq_summer)s, %(water_freq_winter)s, %(fertile_freq_summer)s, %(fertile_freq_winter)s, %(spraying)s, %(light)s)"
+    add_plant = "insert into userplants (user, plantname, plantspec, last_watering, last_fertile, water_freq_summer, water_freq_winter, fertile_freq_summer, fertile_freq_winter, spraying, light) values (%(user)s, %(plantname)s, %(plantspec)s, %(last_watering)s, %(last_fertile)s, %(water_freq_summer)s, %(water_freq_winter)s, %(fertile_freq_summer)s, %(fertile_freq_winter)s, %(spraying)s, %(light)s)"
 
     with connect(
             host="localhost",
@@ -90,39 +91,128 @@ def addUserPlants(login, plant_name, plant_spec, last_water):
                 return('Растение добавлено в ваш список')
             except Error as e: print(e)
 
-def addUserWater(last_water, plant_id=None, plantname=""):
-    if len(last_water)==0:
+def addUserWatering(last_watering=None, plant=None):
+
+    add_data = {}
+
+    if last_watering == None:
         return ('Неправильная дата')
-    if plant_id != None:
-        with connect(
-                host="localhost",
-                user='admin',
-                password='Plantchecker1!',
-                database='plantcheckerDB'
-        ) as connection:
+    elif type(last_watering) == str and len(last_watering) == 10 and last_watering.find('.') == 2:
+        add_data['date'] = datetime.datetime.strptime(last_watering, "%d.%m.%Y").date()
+    else:
+        return ('Неправильный формат даты. Используйте "dd.mm.yyyy".')
 
-            with connection.cursor() as cursor:
-                try:
-                    cursor.execute('select * from userplants where id = "{}"'.format(id = plant_id))
-                    plant = cursor.fetchall()
-                    print(plant)
+    if plant == None:
+        return ('Не определили растение, которое вы полили')
 
-                except Error as e: print(e)
+    with connect(
+            host="localhost",
+            user='admin',
+            password='Plantchecker1!',
+            database='plantcheckerDB'
+    ) as connection:
+
+        with connection.cursor() as cursor:
+
+            if plant.isdigit() == True:
+                plant_id = int(plant)
+                cursor.execute(
+                    'select last_watering,water_freq_summer, water_freq_winter from userplants where id = "{id}"'.format(
+                        id=plant_id))
+
+                add_data['id'] = plant_id
+                add_string = 'update userplants set last_watering = %(date)s, next_water= %(next_date)s where id = %(id)s'
 
 
-    if len(plantname)>0:
-        pass
+            # надо переписать чтобы работало на строки с включением цифр
+            elif plant.isalpha() == True:
+                plantname = plant
+                cursor.execute(
+                    'select last_watering,water_freq_summer, water_freq_winter from userplants where plantname="{plantname}"'.format(
+                        plantname=plantname))
+
+                add_data['plantname'] = plant
+                add_string = 'update userplants set last_watering = %(date)s, next_water= %(next_date)s where plantname = %(plantname)s'
+
+            plantsql = cursor.fetchall()
+            if plantsql[0][0].month in range(3, 10):
+                add_data['next_date'] = plantsql[0][0] + datetime.timedelta(days=plantsql[0][1])
+            else:
+                add_data['next_date'] = plantsql[0][0] + datetime.timedelta(days=plantsql[0][2])
+
+            try:
+                cursor.execute(add_string, add_data)
+                connection.commit()
+                return ('Событие зафиксировано, растение {plant} полито'.format(plant = plant))
+
+            except Error as e:
+                print(e)
+
+def addUserFertiling(last_fertiling=None, plant=None):
+
+    add_data = {}
+
+    if last_fertiling == None:
+        return ('Неправильная дата')
+    elif type(last_fertiling) == str and len(last_fertiling) == 10 and last_fertiling.find('.') == 2:
+        add_data['date'] = datetime.datetime.strptime(last_fertiling, "%d.%m.%Y").date()
+    else:
+        return ('Неправильный формат даты. Используйте "dd.mm.yyyy".')
+
+    if plant == None:
+        return ('Не определили растение, которое вы полили')
+
+    with connect(
+            host="localhost",
+            user='admin',
+            password='Plantchecker1!',
+            database='plantcheckerDB'
+    ) as connection:
+
+        with connection.cursor() as cursor:
+
+            if plant.isdigit() == True:
+                plant_id = int(plant)
+                cursor.execute(
+                    'select last_fertiling,fertile_freq_summer, fertile_freq_winter from userplants where id = "{id}"'.format(
+                        id=plant_id))
+
+                add_data['id'] = plant_id
+                add_string = 'update userplants set last_fertiling = %(date)s, next_fertile= %(next_date)s where id = %(id)s'
 
 
-def addUserFertils():
-    pass
+            # надо переписать чтобы работало на строки с включением цифр
+            elif plant.isalpha() == True:
+                plantname = plant
+                cursor.execute(
+                    'select last_fertiling,fertile_freq_summer, fertile_freq_winter from userplants where plantname="{plantname}"'.format(
+                        plantname=plantname))
+
+                add_data['plantname'] = plant
+                add_string = 'update userplants set last_fertiling = %(date)s, next_fertile= %(next_date)s where plantname = %(plantname)s'
+
+            plantsql = cursor.fetchall()
+            if plantsql[0][0].month in range(3, 10):
+                add_data['next_date'] = plantsql[0][0] + datetime.timedelta(days=plantsql[0][1])
+            else:
+                add_data['next_date'] = plantsql[0][0] + datetime.timedelta(days=plantsql[0][2])
+
+            try:
+                cursor.execute(add_string, add_data)
+                connection.commit()
+                return ('Событие зафиксировано, растение {plant} полито'.format(plant = plant))
+
+            except Error as e:
+                print(e)
 
 def addUser():
     pass
 
 # print(addUserPlants('linlynx','Фиттония','фиттония','31.07.2021'))
-print(userPlantCard(plantname='Кротон'))
-# 
+print(addUserFertiling("01.06.2021",'Кротон'))
+print(addUserWatering("01.06.2021", 'Фиттония'))
+print(checkUserPlants('linlynx'))
+#
 #
 # try:
 #     with connect(
@@ -133,7 +223,10 @@ print(userPlantCard(plantname='Кротон'))
 #     ) as connection:
 #
 #         with connection.cursor() as cursor:
-#             cursor.execute('alter table userplants add column next_fertile date')
+#             cursor.execute('delete from userplants where plantname is null')
 #             connection.commit()
+#
+#             # cursor.execute('update userplants set last_fertiling = last_fertile')
+#             # connection.commit()
 #
 # except Error as e: print(e)
