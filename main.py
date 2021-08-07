@@ -5,26 +5,45 @@ def userLogin():
     pass
 
 def checkUserPlants(login):
-    try:
-        with connect(
+    with connect(
                 host="localhost",
                 user='admin',
                 password='Plantchecker1!',
                 database='plantcheckerDB'
         ) as connection:
-            with connection.cursor() as cursor:
-                cursor.execute('select id from users where login = "{login}"'.format(login=login))
-                id = cursor.fetchone()
+        with connection.cursor() as cursor:
+            cursor.execute('select id from users where login = "{login}"'.format(login=login))
+            id = cursor.fetchone()
+            if id == None:
+                return ("Мы вас не узнали. Укажите ваш логин")
+            id = id[0]
 
-                if len(id) == 0:
-                    return ("Мы вас не узнали. Укажите ваш логин")
-                cursor.execute('select * from userplants where user = "{id}"'.format(id = id[0]))
-                user_plants = cursor.fetchall()
+            cursor.execute("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = 'plantcheckerDB' AND TABLE_NAME = 'userplants'")
+            columnlist = [('').join(x) for x in cursor.fetchall()]
 
-                return user_plants
+            cursor.execute('select plantname from userplants where user="{id}"'.format(id=id))
+            userplants_list = [('').join(x) for x in cursor.fetchall()]
+            if len(userplants_list) == 0:
+                return('У вас еще нет растений')
 
-    except Error as e:
-        print(e)
+    user_plants = {}
+    for name in userplants_list:
+        plant_card={}
+        print(name)
+        for x in columnlist:
+            with connect(
+                    host="localhost",
+                    user='admin',
+                    password='Plantchecker1!',
+                    database='plantcheckerDB'
+            ) as connection:
+                with connection.cursor() as cursor:
+                    cursor.execute('select {column} from userplants where user={id} and plantname="{name}"'.format(column=x, id=id, name=name))
+                    data = cursor.fetchall()[0][0]
+            plant_card[x] = data
+
+        user_plants.setdefault(name,plant_card)
+    return user_plants
 
 def userPlantCard(plant_id=None,plantname=''):
     with connect(
@@ -45,12 +64,12 @@ def userPlantCard(plant_id=None,plantname=''):
                 return plant_card
             except Error as e: print(e)
 
-def addUserPlants(login, plant_name, plant_spec, last_watering=None):
+def addUserPlants(login, plantname, plantspec, last_watering=None):
     plant_data={}
     with open('plantspecies.json', 'r') as plantspecies:
         plant_dict = json.load(plantspecies)
-    plant_spec = plant_spec.lower()
-    if plant_spec not in plant_dict:
+    plantspec = plantspec.lower()
+    if plantspec not in plant_dict:
         return 'Не опознали вид растения'
 
     if type(last_watering) == str and (len(last_watering)== 10) and last_watering.find('.')==2:
@@ -60,17 +79,17 @@ def addUserPlants(login, plant_name, plant_spec, last_watering=None):
     else:
         return('Неправильный формат даты. Используйте "dd.mm.yyyy".')
 
-    plant_data["last_fertile"] = plant_data["last_watering"]
-    plant_data['plantspec'] = plant_spec
-    plant_data['light'] = plant_dict[plant_spec]['light']
-    plant_data['water_freq_summer'] = plant_dict[plant_spec]['water_summer']
-    plant_data['water_freq_winter'] = plant_dict[plant_spec]['water_winter']
-    plant_data["fertile_freq_summer"] = plant_dict[plant_spec]['fertile_summer']
-    plant_data["fertile_freq_winter"] = plant_dict[plant_spec]['fertile_winter']
-    plant_data["spraying"] = plant_dict[plant_spec]['spraying']
-    plant_data["plantname"] = plant_name
+    plant_data["last_fertiling"] = plant_data["last_watering"]
+    plant_data['plantspec'] = plantspec
+    plant_data['light'] = plant_dict[plantspec]['light']
+    plant_data['water_freq_summer'] = plant_dict[plantspec]['water_summer']
+    plant_data['water_freq_winter'] = plant_dict[plantspec]['water_winter']
+    plant_data["fertile_freq_summer"] = plant_dict[plantspec]['fertile_summer']
+    plant_data["fertile_freq_winter"] = plant_dict[plantspec]['fertile_winter']
+    plant_data["spraying"] = plant_dict[plantspec]['spraying']
+    plant_data["plantname"] = plantname
 
-    add_plant = "insert into userplants (user, plantname, plantspec, last_watering, last_fertile, water_freq_summer, water_freq_winter, fertile_freq_summer, fertile_freq_winter, spraying, light) values (%(user)s, %(plantname)s, %(plantspec)s, %(last_watering)s, %(last_fertile)s, %(water_freq_summer)s, %(water_freq_winter)s, %(fertile_freq_summer)s, %(fertile_freq_winter)s, %(spraying)s, %(light)s)"
+    add_plant = "insert into userplants (user, plantname, plantspec, last_watering, last_fertiling, water_freq_summer, water_freq_winter, fertile_freq_summer, fertile_freq_winter, spraying, light) values (%(user)s, %(plantname)s, %(plantspec)s, %(last_watering)s, %(last_fertiling)s, %(water_freq_summer)s, %(water_freq_winter)s, %(fertile_freq_summer)s, %(fertile_freq_winter)s, %(spraying)s, %(light)s)"
 
     with connect(
             host="localhost",
@@ -86,6 +105,12 @@ def addUserPlants(login, plant_name, plant_spec, last_watering=None):
             plant_data['user'] = user[0][0]
 
             try:
+                cursor.execute('select * from userplants where id = {id} and plantname = "{plantname}" and plantspec = "{plantspec}"'.format(id = user[0][0], plantname = plantname, plantspec = plantspec))
+                checkdata = cursor.fetchall()
+                print(checkdata)
+                if len(checkdata)!=0:
+                    print(checkdata)
+                    return ("Похоже, это растение вы уже вносили")
                 cursor.execute(add_plant,plant_data)
                 connection.commit()
                 return('Растение добавлено в ваш список')
@@ -160,7 +185,7 @@ def addUserFertiling(last_fertiling=None, plant=None):
         return ('Неправильный формат даты. Используйте "dd.mm.yyyy".')
 
     if plant == None:
-        return ('Не определили растение, которое вы полили')
+        return ('Не определили растение, которое вы подкормили')
 
     with connect(
             host="localhost",
@@ -200,19 +225,27 @@ def addUserFertiling(last_fertiling=None, plant=None):
             try:
                 cursor.execute(add_string, add_data)
                 connection.commit()
-                return ('Событие зафиксировано, растение {plant} полито'.format(plant = plant))
+                return ('Событие зафиксировано, растение {plant} подкормлено'.format(plant = plant))
 
             except Error as e:
                 print(e)
 
-def addUser():
-    pass
+def addUser(login=None, password=None):
+    if login == None:
+        return ("Вы не ввели логин")
+    if password == None:
+        return("Вы не ввели пароль")
+    if len(login)<4:
+        return ("Пожалуйста исправьте логин, он слишком короткий")
+    if len(password)<8:
+        return("Пожалуйста исправьте пароль, слишком короткий")
+
 
 # print(addUserPlants('linlynx','Фиттония','фиттония','31.07.2021'))
-print(addUserFertiling("01.06.2021",'Кротон'))
-print(addUserWatering("01.06.2021", 'Фиттония'))
-print(checkUserPlants('linlynx'))
-#
+# print(addUserFertiling("01.06.2021",'Фиттония'))
+# print(addUserWatering("07.08.2021", 'Кротон'))
+print(checkUserPlants('tesi'))
+
 #
 # try:
 #     with connect(
@@ -223,7 +256,7 @@ print(checkUserPlants('linlynx'))
 #     ) as connection:
 #
 #         with connection.cursor() as cursor:
-#             cursor.execute('delete from userplants where plantname is null')
+#             cursor.execute('delete from userplants where id = "11"')
 #             connection.commit()
 #
 #             # cursor.execute('update userplants set last_fertiling = last_fertile')
