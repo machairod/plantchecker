@@ -64,7 +64,7 @@ def userPlantCard(plant_id=None,plantname=''):
                 return plant_card
             except Error as e: print(e)
 
-def addUserPlants(login, plantname, plantspec, last_watering=None):
+def addUserPlant(login, plantname, plantspec, last_watering=None):
     plant_data={}
     with open('plantspecies.json', 'r') as plantspecies:
         plant_dict = json.load(plantspecies)
@@ -240,8 +240,14 @@ def addUser(login=None, password=None):
     if len(password)<8:
         return("Пожалуйста исправьте пароль, слишком короткий")
 
+def deletePlant():
+    pass
 
-# print(addUserPlants('linlynx','Фиттония','фиттония','31.07.2021'))
+def deleteUser():
+    pass
+
+
+# print(addUserPlant('linlynx','Фиттония','фиттония','31.07.2021'))
 # print(addUserFertiling("01.06.2021",'Фиттония'))
 # print(addUserWatering("07.08.2021", 'Кротон'))
 print(checkUserPlants('tesi'))
