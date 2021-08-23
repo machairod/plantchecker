@@ -1,9 +1,6 @@
 from mysql.connector import connect, Error
 import json, datetime
 
-def userLogin():
-    pass
-
 def checkUserPlants(login):
     with connect(
                 host="localhost",
@@ -29,7 +26,6 @@ def checkUserPlants(login):
     user_plants = {}
     for name in userplants_list:
         plant_card={}
-        print(name)
         for x in columnlist:
             with connect(
                     host="localhost",
@@ -230,18 +226,28 @@ def addUserFertiling(last_fertiling=None, plant=None):
             except Error as e:
                 print(e)
 
-def addUser(login=None, password=None):
-    if login == None:
-        return ("Вы не ввели логин")
-    if password == None:
-        return("Вы не ввели пароль")
-    if len(login)<4:
-        return ("Пожалуйста исправьте логин, он слишком короткий")
-    if len(password)<8:
-        return("Пожалуйста исправьте пароль, слишком короткий")
-
-def deletePlant():
+def addUser(login=None, platform=None):
     pass
+
+def deletePlant(login=None,plantname=None):
+    with connect(
+            host="localhost",
+            user='admin',
+            password='Plantchecker1!',
+            database='plantcheckerDB'
+    ) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute('select id from users where login = "{login}"'.format(login=login))
+            id = cursor.fetchone()
+            if id == None:
+                return ("Мы вас не узнали. Укажите ваш логин")
+            id = id[0]
+            cursor.execute('select * from userplants where user="{id}"'.format(id=id))
+            deleting_userplant = cursor.fetchall()
+            if len(deleting_userplant) == 0:
+                return('У вас еще нет растений')
+            cursor.execute('delete from userplants where plantname = "{plantname}"'.format(plantname=plantname))
+            connection.commit()
 
 def deleteUser():
     pass
@@ -250,7 +256,7 @@ def deleteUser():
 # print(addUserPlant('linlynx','Фиттония','фиттония','31.07.2021'))
 # print(addUserFertiling("01.06.2021",'Фиттония'))
 # print(addUserWatering("07.08.2021", 'Кротон'))
-print(checkUserPlants('tesi'))
+print(*checkUserPlants('linlynx').keys(),sep='\n')
 
 #
 # try:
