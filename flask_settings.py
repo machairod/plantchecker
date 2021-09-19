@@ -2,7 +2,7 @@ from flask import Flask, url_for, request, jsonify
 from plantchecker import Plantchecker
 app = Flask(__name__)
 app.config['JSON_AS_ASCII'] = False
-# create/delete login, create/delete plant, getuserplants, update water/fertile
+# create/delete login, create/delete plant, update water/fertile
 
 
 @app.route('/')
@@ -14,9 +14,17 @@ def index():
 def login(): pass
 
 
-@app.route('/user/<username>', methods=['GET'])
+# get json list of user's plants
+@app.route('/user/<username>/', methods=['GET'])
 def usercard(username):
     return jsonify(Plantchecker.checkUserPlants(username))
+
+
+@app.route('/addwater/', methods=['PUT'])
+def addwater():
+    json = request.get_json()
+    return Plantchecker.add_plant_water(json)
+
 
 
 @app.route('/calc/', methods=['POST'])
@@ -27,9 +35,7 @@ def calc():
 
 
 with app.test_request_context():
-    print(url_for('index'))
-    print(url_for('usercard', username='linlynx'))
-    print(url_for('calc'))
+    print("it's working")
 
 
 if __name__ == '__main__':
