@@ -1,15 +1,21 @@
 from mysql.connector import connect, Error
-import json, datetime
+import os, json, datetime, configparser
+
+path = os.path.dirname(__file__)
+config = configparser.ConfigParser()
+configfile = os.path.join(path, 'mysql-settings.ini')
+config.read(configfile)
+connection = connect(
+                    host=config['plantbase']['host'],
+                    user=config['plantbase']['user'],
+                    password=config['plantbase']['password'],
+                    database=config['plantbase']['database']
+            )
 
 class Plantchecker():
-    def checkUserPlants(self, login: str):
-        with connect(
-                    host="localhost",
-                    user='admin',
-                    password='Plantchecker1!',
-                    database='plantcheckerDB'
-            ) as connection:
-            with connection.cursor() as cursor:
+    def checkUserPlants(login: str):
+        global connection
+        with connection.cursor() as cursor:
                 cursor.execute('select id from users where login = "{login}"'.format(login=login))
                 id = cursor.fetchone()
                 if id == None:
@@ -42,14 +48,9 @@ class Plantchecker():
             user_plants.setdefault(name,plant_card)
         return user_plants
 
-    def userPlantCard(self, plant_id: int = None, plantname: str = ''):
-        with connect(
-                host="localhost",
-                user='admin',
-                password='Plantchecker1!',
-                database='plantcheckerDB'
-        ) as connection:
-            with connection.cursor() as cursor:
+    def userPlantCard(plant_id: int = None, plantname: str = ''):
+        global connection
+        with connection.cursor() as cursor:
                 try:
                     cursor.execute("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = 'plantcheckerDB' AND TABLE_NAME = 'userplants';")
                     columnlist = [('').join(x) for x in cursor.fetchall()]
@@ -61,7 +62,8 @@ class Plantchecker():
                     return plant_card
                 except Error as e: print(e)
 
-    def addUserPlant(self, login: str, plantname: str, plantspec: str, last_watering: str = None):
+    def addUserPlant(login: str, plantname: str, plantspec: str, last_watering: str = None):
+        global connection
         plant_data={}
         with open('plantspecies.json', 'r') as plantspecies:
             plant_dict = json.load(plantspecies)
@@ -88,13 +90,7 @@ class Plantchecker():
 
         add_plant = "insert into userplants (user, plantname, plantspec, last_watering, last_fertiling, water_freq_summer, water_freq_winter, fertile_freq_summer, fertile_freq_winter, spraying, light) values (%(user)s, %(plantname)s, %(plantspec)s, %(last_watering)s, %(last_fertiling)s, %(water_freq_summer)s, %(water_freq_winter)s, %(fertile_freq_summer)s, %(fertile_freq_winter)s, %(spraying)s, %(light)s)"
 
-        with connect(
-                host="localhost",
-                user='admin',
-                password='Plantchecker1!',
-                database='plantcheckerDB'
-        ) as connection:
-            with connection.cursor() as cursor:
+        with connection.cursor() as cursor:
                 cursor.execute('select id from users where login="{user}"'.format(user = login))
                 user = cursor.fetchall()
                 if len(user) == 0:
@@ -113,8 +109,8 @@ class Plantchecker():
                     return('Растение добавлено в ваш список')
                 except Error as e: print(e)
 
-    def addUserWatering(self, last_watering: str = None, plant: str = None):
-
+    def addUserWatering(last_watering: str = None, plant: str = None):
+        global connection
         add_data = {}
 
         if last_watering == None:
@@ -127,14 +123,7 @@ class Plantchecker():
         if plant == None:
             return ('Не определили растение, которое вы полили')
 
-        with connect(
-                host="localhost",
-                user='admin',
-                password='Plantchecker1!',
-                database='plantcheckerDB'
-        ) as connection:
-
-            with connection.cursor() as cursor:
+        with connection.cursor() as cursor:
 
                 if plant.isdigit() == True:
                     plant_id = int(plant)
@@ -170,8 +159,8 @@ class Plantchecker():
                 except Error as e:
                     print(e)
 
-    def addUserFertiling(self, last_fertiling: str = None, plant: str = None):
-
+    def addUserFertiling(last_fertiling: str = None, plant: str = None):
+        global connection
         add_data = {}
 
         if last_fertiling == None:
@@ -184,14 +173,7 @@ class Plantchecker():
         if plant == None:
             return ('Не определили растение, которое вы подкормили')
 
-        with connect(
-                host="localhost",
-                user='admin',
-                password='Plantchecker1!',
-                database='plantcheckerDB'
-        ) as connection:
-
-            with connection.cursor() as cursor:
+        with connection.cursor() as cursor:
 
                 if plant.isdigit() == True:
                     plant_id = int(plant)
@@ -227,14 +209,9 @@ class Plantchecker():
                 except Error as e:
                     print(e)
 
-    def deletePlant(self, login:str = None, plantname: str = None):
-        with connect(
-                host="localhost",
-                user='admin',
-                password='Plantchecker1!',
-                database='plantcheckerDB'
-        ) as connection:
-            with connection.cursor() as cursor:
+    def deletePlant(str = None, plantname: str = None):
+        global connection
+        with connection.cursor() as cursor:
                 cursor.execute('select id from users where login = "{login}"'.format(login=login))
                 id = cursor.fetchone()
                 if id == None:
@@ -247,9 +224,9 @@ class Plantchecker():
                 cursor.execute('delete from userplants where plantname = "{plantname}"'.format(plantname=plantname))
                 connection.commit()
 
-    def addUser(self, login: str = None, platform:str = None):
+    def addUser(login: str = None, platform:str = None):
         pass
 
-    def deleteUser():
+    def deleteUser(login: str):
         pass
 
