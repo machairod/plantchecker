@@ -14,20 +14,22 @@ connection = connect(
 )
 
 class Plantchecker():
-    def check_user_plants(login: str):
-        global connection
-        with connection.cursor() as cursor:
-            cursor.execute('select id from users where login = "{login}"'.format(login=login))
-            id = cursor.fetchone()
-            if id == None:
-                return ("Мы вас не узнали. Укажите ваш логин")
-            id = id[0]
 
-            cursor.execute(
-                "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = 'plantcheckerDB' AND TABLE_NAME = 'userplants'")
+    def check_user_plants(login: str = None, user_id: int = None):
+        global connection
+        if user_id is None and login is None:
+            return ("Мы вас не узнали. Укажите ваш логин")
+        elif user_id is None:
+            with connection.cursor() as cursor:
+                cursor.execute('select id from users where login = "{login}"'.format(login=login))
+                user_id = cursor.fetchone()
+                user_id = user_id[0]
+        with connection.cursor() as cursor:
+            cursor.execute("""SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE 
+        TABLE_SCHEMA = 'plantcheckerDB' AND TABLE_NAME = 'userplants'""")
             columnlist = [('').join(x) for x in cursor.fetchall()]
 
-            cursor.execute('select plantname from userplants where user="{id}"'.format(id=id))
+            cursor.execute('select plantname from userplants where user="{id}"'.format(id=user_id))
             userplants_list = [('').join(x) for x in cursor.fetchall()]
             if len(userplants_list) == 0:
                 return ('У вас еще нет растений')
@@ -38,10 +40,10 @@ class Plantchecker():
             for x in columnlist:
                 with connection.cursor() as cursor:
                     cursor.execute(
-                        'select {column} from userplants where user={id} and plantname="{name}"'.format(column=x, id=id,
+                        'select {column} from userplants where user={id} and plantname="{name}"'.format(column=x, id=user_id,
                                                                                                         name=name))
                     data = cursor.fetchall()[0][0]
-                plant_card[x] = data
+                    plant_card[x] = data
 
             user_plants.setdefault(name, plant_card)
         cursor.close()
@@ -210,19 +212,27 @@ class Plantchecker():
             except Error as e:
                 return 'Произошла ошибка - '+str(e)+'\n'
 
-    def delete_plant(login: str = None, plantname: str = None):
+    def delete_plant(login: str = None, plantname: str = None, **kwargs):
         global connection
+        plant_id = kwargs.get("plant_id", default=None)
+        user_id = kwargs.get("user_id", default=None)
+
+        if user_id is None and login is None:
+            return "Мы вас не узнали. Укажите ваш логин"
+        elif user_id is None:
+            with connection.cursor() as cursor:
+                cursor.execute('select id from users where login = "{login}"'.format(login=login))
+                user_id = cursor.fetchone()
+                user_id = user_id[0]
+            cursor.close()
+
         with connection.cursor() as cursor:
-            cursor.execute('select id from users where login = "{login}"'.format(login=login))
-            id = cursor.fetchone()
-            if id is None:
-                return "Мы вас не узнали. Укажите ваш логин\n"
-            id = id[0]
-            cursor.execute('select * from userplants where user="{id}"'.format(id=id))
-            deleting_userplant = cursor.fetchall()
-            if len(deleting_userplant) == 0:
-                return 'У вас еще нет растений\n'
-            cursor.execute('delete from userplants where plantname = "{plantname}"'.format(plantname=plantname))
+            cursor.execute('select plantname from userplants where user="{id}"'.format(id=user_id))
+            plantlist = [''.join(x) for x in cursor.fetchall()]
+            if len(plantlist) == 0:
+                return 'У вас еще нет растений'
+            cursor.execute('delete from userplants where user="{id}" and (plantname="{plantname}" '
+                           'or plant_id="{plant_id}"'.format(plantname=plantname, id=user_id, plant_id=plant_id))
             connection.commit()
 
     def add_user(login: str = None, platform: str = None):
