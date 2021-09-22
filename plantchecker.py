@@ -1,5 +1,9 @@
+import configparser
+import datetime
+import json
+import os
+
 from mysql.connector import connect, Error
-import os, json, datetime, configparser
 
 path = os.path.dirname(__file__)
 configfile = os.path.join(path, 'mysql-settings.ini')
@@ -12,6 +16,7 @@ connection = connect(
     password=config['plantbase']['password'],
     database=config['plantbase']['database']
 )
+
 
 class Plantchecker():
 
@@ -40,7 +45,8 @@ class Plantchecker():
             for x in columnlist:
                 with connection.cursor() as cursor:
                     cursor.execute(
-                        'select {column} from userplants where user={id} and plantname="{name}"'.format(column=x, id=user_id,
+                        'select {column} from userplants where user={id} and plantname="{name}"'.format(column=x,
+                                                                                                        id=user_id,
                                                                                                         name=name))
                     data = cursor.fetchall()[0][0]
                     plant_card[x] = data
@@ -165,7 +171,7 @@ class Plantchecker():
                 return 'Событие зафиксировано, растение {plant} полито {date}\n'.format(plant=plant, date=str(date))
 
             except Error as e:
-                return 'Произошла ошибка - '+str(e)+'\n'
+                return 'Произошла ошибка - ' + str(e) + '\n'
 
     def add_plant_fertile(plantdata: json):
         global connection
@@ -206,11 +212,12 @@ class Plantchecker():
                 connection.commit()
                 cursor.close()
                 if plant is None:
-                    return  'Событие зафиксировано, растение id:{id} удобрено {date}\n'.format(id=plant_id, date=str(date))
+                    return 'Событие зафиксировано, растение id:{id} удобрено {date}\n'.format(id=plant_id,
+                                                                                              date=str(date))
                 return 'Событие зафиксировано, растение {plant} удобрено {date}\n'.format(plant=plant, date=str(date))
 
             except Error as e:
-                return 'Произошла ошибка - '+str(e)+'\n'
+                return 'Произошла ошибка - ' + str(e) + '\n'
 
     def delete_plant(login: str = None, plantname: str = None, **kwargs):
         global connection
@@ -234,9 +241,23 @@ class Plantchecker():
             cursor.execute('delete from userplants where user="{id}" and (plantname="{plantname}" '
                            'or plant_id="{plant_id}"'.format(plantname=plantname, id=user_id, plant_id=plant_id))
             connection.commit()
+            cursor.execute('select plantname from userplants where user="{id}" and '
+                           '(plantname="{plantname}"'.format(plantname=plantname, id=user_id))
 
-    def add_user(login: str = None, platform: str = None):
-        pass
+            plantlist = [''.join(x) for x in cursor.fetchall()]
+            cursor.close()
+        return 'Растение удалено' if len(plantlist) == 0 else 'Что-то случилось, повторите запрос'
+
+    def add_user(login: str = None, user_id: int = None, **kwargs):
+        global connection
+        if user_id is None and login is None:
+            return "Не хватает данных для регистрации"
+        with connection.cursor() as cursor:
+            cursor.execute('select * from users where login = "{login}" or pass = "{id}"'.format(login=login, id=user_id))
+            users = [''.join(x) for x in cursor.fetchall()]
+            if len(users)== 0: return 'Не нашли такого пользователя'
+        cursor.close()
+
 
     def delete_user(login: str):
         pass
