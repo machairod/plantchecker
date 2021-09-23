@@ -6,7 +6,7 @@ import os
 from mysql.connector import connect, Error
 
 path = os.path.dirname(__file__)
-configfile = os.path.join(path, 'mysql-settings.ini')
+configfile = os.path.join(path, 'settings.ini')
 
 config = configparser.ConfigParser()
 config.read(configfile)
