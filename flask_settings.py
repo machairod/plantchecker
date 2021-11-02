@@ -25,9 +25,11 @@ def plants():
         json = request.get_json()
         return Plantchecker.add_user_plant(json)
     elif request.method == 'GET':
-        username = request.args.get('user', default=None)
+        username = request.args.get('login', default=None)
         userid = request.args.get('user_id', default=None)
-        return jsonify(Plantchecker.check_user_plants(username, userid))
+        if userid is None and username is None:
+            return 'Здесь доступ к списку растений пользователей'
+        else: return jsonify(Plantchecker.check_user_plants(username, userid))
     elif request.method == 'DELETE':
         plantname = request.args.get('plantname', default=None)
         login = request.args.get('login', default=None)
@@ -47,7 +49,7 @@ def water():
 
 
 # update last_watering date for user plant
-# json must contain at least 'name' and likely, a date, if not it would be today
+# json must contain at least 'name' and likely, a date, if not it would be on date
 @app.route('/plants/fertile/', methods=['PUT'])
 def fertile():
     json = request.get_json()
