@@ -32,10 +32,10 @@ def plants():
         else: return jsonify(Plantchecker.check_user_plants(username, userid))
     elif request.method == 'DELETE':
         plantname = request.args.get('plantname', default=None)
-        login = request.args.get('login', default=None)
+        username = request.args.get('login', default=None)
         plant_id = request.args.get('plant_id')
         user_id = request.args.get('user_id')
-        return Plantchecker.delete_plant(plantname, login=login, plant_id=plant_id, user_id=user_id)
+        return Plantchecker.delete_plant(plantname, login=username, plant_id=plant_id, user_id=user_id)
     else:
         return 'Здесь доступ к списку растений пользователей'
 
@@ -61,5 +61,6 @@ if __name__ == '__main__':
     print(url_for('plants', user='linlynx'))
     with app.test_context():
         url_for('plants', user='linlynx')
-        # print("it's working")
-        # print(app.url_map)
+        print(app.url_map)
+    print("it's working")
+
