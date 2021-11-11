@@ -1,5 +1,7 @@
-import telebot, configparser, os, json
+import telebot, configparser, os, json, requests
 from telebot import types
+
+server = '127.0.0.1:5000'
 
 path = os.path.dirname(__file__)
 config = configparser.ConfigParser()
@@ -14,6 +16,7 @@ bot = telebot.TeleBot(token)
 def start_message(message):
     name = message.from_user.first_name if message.from_user.first_name is not None else "@"+message.from_user.username
     bot.send_message(message.chat.id,f'Привет, {name}, я бот для своевременного ухода за растениями.')
+
 
 @bot.message_handler(commands=['list'])
 def get_plant_list(message):

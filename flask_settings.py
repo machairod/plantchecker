@@ -10,12 +10,17 @@ def index():
     return 'Plantchecker API'
 
 
-@app.route('/login/')
-def login(): pass
-
-
 @app.route('/users/')
-def add_user(): pass
+def login():
+    if request.method == 'POST':
+        json = request.get_json()
+        return Plantchecker.add_user(json)
+    elif request.method == 'GET':
+        username = request.args.get('login', default=None)
+        if username is None:
+            return 'Здесь проверка пользователей'
+        else: return jsonify(Plantchecker.check_user(username))
+
 
 
 # create user plant with spec and last watering and last fertiling dates
@@ -58,9 +63,4 @@ def fertile():
 
 if __name__ == '__main__':
     app.run(port=5000, debug=True)
-    print(url_for('plants', user='linlynx'))
-    with app.test_context():
-        url_for('plants', user='linlynx')
-        print(app.url_map)
-    print("it's working")
 

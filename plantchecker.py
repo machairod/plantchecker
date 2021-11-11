@@ -248,16 +248,57 @@ class Plantchecker():
             cursor.close()
         return 'Растение удалено' if len(plantlist) == 0 else 'Что-то случилось, повторите запрос'
 
-    def add_user(login: str = None, user_id: int = None, **kwargs):
+    def add_user(login: str = None, name: str = None, **kwargs):
         global connection
-        if user_id is None and login is None:
-            return "Не хватает данных для регистрации"
+        if name is None and login is None:
+            return 100
         with connection.cursor() as cursor:
-            cursor.execute('select * from users where login = "{login}" or pass = "{id}"'.format(login=login, id=user_id))
-            users = [''.join(x) for x in cursor.fetchall()]
-            if len(users)== 0: return 'Не нашли такого пользователя'
+            cursor.execute('select * from users where login="{login}"'.format(login=login))
+            users = [''.join(str(x)) for x in cursor.fetchall()]
+            if len(users) == 0:
+                cursor.execute('insert into users values (Null,"{login}", "{name}")'.format(login=login, name=name))
+                connection.commit()
+                return 200
+
+            elif len(users) == 1:
+                return 201
+
+            else:
+                return 400
+
         cursor.close()
 
+    def check_user(login: str = None, name: str = None):
+        global connection
+        if name is None and login is None:
+            return 100
+        with connection.cursor() as cursor:
+            cursor.execute('select * from users where login="{login}"'.format(login=login))
+            users = [''.join(str(x)) for x in cursor.fetchall()]
+
+            if len(users) == 1:
+                if name is not None:
+                    if users[2] != name or users[2] is None:
+                        cursor.execute('update users set name = "{name}" where login = "{login}"'.format(name = name, login = login))
+                        connection.commit()
+                        cursor.close()
+                        return 201
+
+                cursor.close()
+                return 200
+            elif len(users)==0:
+                return Plantchecker.add_user(login,name)
+            else:
+                return 400
 
     def delete_user(login: str):
         pass
+
+
+if __name__ == '__main__':
+    # with connection.cursor() as cursor:
+    #     cursor.execute('update users set name="anna" where login="linlynx";')
+    #     connection.commit()
+    # cursor.close()
+
+    print(Plantchecker.check_user(login='56789'))
