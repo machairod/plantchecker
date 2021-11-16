@@ -18,7 +18,7 @@ def login():
     elif request.method == 'GET':
         username = request.args.get('login', default=None)
         if username is None:
-            return 'Здесь проверка пользователей'
+            return 'Checking users accounts here'
         else: return jsonify(Plantchecker.check_user(username))
 
 
@@ -33,7 +33,7 @@ def plants():
         username = request.args.get('login', default=None)
         userid = request.args.get('user_id', default=None)
         if userid is None and username is None:
-            return 'Здесь доступ к списку растений пользователей'
+            return 'Lists of users plants.'
         else: return jsonify(Plantchecker.check_user_plants(username, userid))
     elif request.method == 'DELETE':
         plantname = request.args.get('plantname', default=None)
@@ -42,7 +42,7 @@ def plants():
         user_id = request.args.get('user_id')
         return Plantchecker.delete_plant(plantname, login=username, plant_id=plant_id, user_id=user_id)
     else:
-        return 'Здесь доступ к списку растений пользователей'
+        return 'Lists of users plants.'
 
 
 # update last_watering date for user plant
