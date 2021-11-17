@@ -17,9 +17,7 @@ connection = connect(
     database=config['plantbase']['database']
 )
 
-
 class Plantchecker():
-
     def get_user_id(login:str = None):
         if login is None:
             return "Мы вас не узнали. Укажите ваш логин"
@@ -32,15 +30,14 @@ class Plantchecker():
         else:
             return user_id[0][0]
 
-    def check_user_plants(login: str = None, user_id: int = None):
+    def check_user_plants(login: str = None):
         global connection
-        if user_id is None and login is None:
+        if login is None:
             return ("Мы вас не узнали. Укажите ваш логин")
-        elif user_id is None:
-            with connection.cursor() as cursor:
-                cursor.execute('select id from users where login = "{login}"'.format(login=login))
-                user_id = cursor.fetchone()
-                user_id = user_id[0]
+        with connection.cursor() as cursor:
+            cursor.execute('select id from users where login = "{login}"'.format(login=login))
+            user_id = cursor.fetchone()
+            user_id = user_id[0]
         with connection.cursor() as cursor:
             cursor.execute("""SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE 
         TABLE_SCHEMA = 'plantcheckerDB' AND TABLE_NAME = 'userplants'""")
@@ -64,12 +61,18 @@ class Plantchecker():
 
             user_plants.setdefault(name, plant_card)
         cursor.close()
-        user_plants = json.dumps(user_plants, indent=4, ensure_ascii=False)
-        print(type(user_plants))
+        user_plants = json.dumps(user_plants, ensure_ascii=False)
         return user_plants
 
-    def user_plantcard(plant_id: int = None, plantname: str = ''):
+    def user_plantcard(plant_id: int = 0, login: str = None):
         global connection
+        if login is None:
+            return ("Мы вас не узнали. Укажите ваш логин")
+        with connection.cursor() as cursor:
+            cursor.execute('select id from users where login = "{login}"'.format(login=login))
+            user_id = cursor.fetchone()
+            user_id = user_id[0]
+
         with connection.cursor() as cursor:
             try:
                 cursor.execute(
@@ -78,14 +81,16 @@ class Plantchecker():
                 plant_card = {}
                 for x in columnlist:
                     cursor.execute(
-                        'select {column} from userplants where id="{id}" or plantname="{name}"'.format(column=x,
-                                                                                                       id=plant_id,
-                                                                                                       name=plantname))
-                    plant_card[x] = cursor.fetchone()[0]
-
-                return plant_card
+                        'select {column} from userplants where id="{id}" and user={user_id}'.format(column=x,
+                                                                                                    id=plant_id,
+                                                                                                    user_id=user_id))
+                    plant_card[x] = cursor.fetchall()[0][0]
             except Error as e:
                 print(e)
+        cursor.close()
+        plant_card = json.dumps(plant_card, ensure_ascii=False)
+
+        return plant_card
 
     def add_user_plant(login: str, plantname: str, plantspec: str, last_watering: str = None):
         global connection
@@ -133,9 +138,7 @@ class Plantchecker():
                     ' and plantspec = "{plantspec}"'.format(
                         id=user[0][0], plantname=plantname, plantspec=plantspec))
                 checkdata = cursor.fetchall()
-                print(checkdata)
                 if len(checkdata) != 0:
-                    print(checkdata)
                     return "Похоже, это растение вы уже добавили\n"
                 cursor.execute(add_plant, plant_data)
                 connection.commit()
@@ -262,7 +265,7 @@ class Plantchecker():
         cursor.close()
         return 'Растение удалено' if len(plantlist) == 0 else 'Что-то случилось, повторите запрос'
 
-    def add_user(login: str = None, name: str = None, **kwargs):
+    def add_user(login: str = None, name: str = None):
         global connection
         if name is None and login is None:
             return "100 - not enough parameters"
@@ -288,7 +291,6 @@ class Plantchecker():
 
 if __name__ == '__main__':
     pass
-
     # path = os.path.abspath('test.json')
     # with open(path) as file:
     #     print(Plantchecker.add_plant_fertile(file))

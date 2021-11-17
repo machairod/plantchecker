@@ -34,7 +34,7 @@ def plants():
         userid = request.args.get('user_id', default=None)
         if userid is None and username is None:
             return 'Lists of users plants.'
-        else: return jsonify(Plantchecker.check_user_plants(username, userid))
+        else: return jsonify(Plantchecker.check_user_plants(username))
     elif request.method == 'DELETE':
         plantname = request.args.get('plantname', default=None)
         username = request.args.get('login', default=None)
@@ -43,6 +43,15 @@ def plants():
         return Plantchecker.delete_plant(plantname, login=username, plant_id=plant_id, user_id=user_id)
     else:
         return 'Lists of users plants.'
+
+@app.route('/plants/<plant_id>', methods=['GET'])
+def plantcard(plant_id):
+    if request.method == 'GET':
+        username = request.args.get('login', default=None)
+        if username is None:
+            return 'User plant card.'
+        else:
+            return jsonify(Plantchecker.user_plantcard(plant_id, username))
 
 
 # update last_watering date for user plant
@@ -63,4 +72,7 @@ def fertile():
 
 if __name__ == '__main__':
     app.run(port=5000, debug=True)
+
+
+
 
