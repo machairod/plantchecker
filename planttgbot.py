@@ -3,6 +3,7 @@ import json
 import os
 import requests
 import telebot
+import datetime
 from telebot import types
 
 server = 'http://127.0.0.1:5000/'
@@ -41,7 +42,6 @@ def plant_card(plant_id, user_id):
 
     bot.send_message(user_id, msg, reply_markup=card_markup)
 
-
 def water_plant(plant_id, login, **kwargs):
     date = None
     plantname = None
@@ -60,7 +60,6 @@ def water_plant(plant_id, login, **kwargs):
         plant_card(plant_id, login)
     else:
         bot.send_message(login, str(response.text) + 'и что-то сломалось')
-
 
 def fertile_plant(plant_id, login, **kwargs):
     date = None
@@ -81,19 +80,17 @@ def fertile_plant(plant_id, login, **kwargs):
     else:
         bot.send_message(login, str(response.text) + 'и что-то сломалось')
 
-
 @bot.message_handler(commands=['start'])
 def start_message(message):
-    name = message.from_user.first_name if message.from_user.first_name is not None else "@" + message.from_user.username
+    name = message.from_user.first_name if message.from_user.first_name is not None else message.from_user.username
     bot.send_message(message.chat.id, f'Привет, {name}, я бот для своевременного ухода за растениями.')
 
 
 @bot.message_handler(commands=['plantlist'])
 def get_plant_list(message):
-    plant_url = server + f"plants/?login={message.from_user.id}"
-    response = requests.get(plant_url)
     user_id = message.chat.id
-
+    plant_url = server + f"plants/?login={user_id}"
+    response = requests.get(plant_url)
     plantlist = json.loads(response.json())
 
     list_markup = types.InlineKeyboardMarkup()
@@ -112,7 +109,16 @@ def memento(message):
     response = requests.get(memento_url)
 
     memento_list = json.loads(response.json())
-    bot.send_message(user_id, memento_list[0])
+    print(memento_list)
+    today = datetime.datetime.today()
+    water_mem = {}
+    fertile_mem = {}
+    for i in memento_list:
+        water_mem[i[1]] = (i[0],i[2])
+        fertile_mem[i[1]] = (i[0],i[3])
+
+    print(water_mem)
+    bot.send_message(user_id, water_mem)
 
 
 @bot.callback_query_handler(func=lambda call: True)
@@ -126,8 +132,9 @@ def callback_inline(call):
             plant_card(plant_id, user_id)
 
         if 'list' in call.data:
-            bot.delete_message(call.message.chat.id, call.message.message_id)
             get_plant_list(call.message)
+            bot.delete_message(call.message.chat.id, call.message.message_id)
+            # get_plant_list(call.message)
 
         if 'water' in call.data:
             water = call.data.split("-")
