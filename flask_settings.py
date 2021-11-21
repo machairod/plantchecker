@@ -10,6 +10,7 @@ def index():
     return 'Plantchecker API'
 
 
+# create user acc whet bot started
 @app.route('/users/')
 def login():
     if request.method == 'POST':
@@ -19,8 +20,8 @@ def login():
         username = request.args.get('login', default=None)
         if username is None:
             return 'Checking users accounts here'
-        else: return jsonify(Plantchecker.check_user(username))
-
+        else:
+            return jsonify(Plantchecker.check_user(username))
 
 
 # create user plant with spec and last watering and last fertiling dates
@@ -34,7 +35,8 @@ def plants():
         userid = request.args.get('user_id', default=None)
         if userid is None and username is None:
             return 'Lists of users plants.'
-        else: return jsonify(Plantchecker.check_user_plants(username))
+        else:
+            return jsonify(Plantchecker.check_user_plants(username))
     elif request.method == 'DELETE':
         plantname = request.args.get('plantname', default=None)
         username = request.args.get('login', default=None)
@@ -44,6 +46,7 @@ def plants():
     else:
         return 'Lists of users plants.'
 
+
 @app.route('/plants/<plant_id>', methods=['GET'])
 def plantcard(plant_id):
     if request.method == 'GET':
@@ -52,6 +55,15 @@ def plantcard(plant_id):
             return 'User plant card.'
         else:
             return jsonify(Plantchecker.user_plantcard(plant_id, username))
+
+@app.route('/memento/', methods=['GET'])
+def memento():
+    if request.method == 'GET':
+        username = request.args.get('login', default=None)
+        if username is None:
+            return 'User memento list.'
+        else:
+            return jsonify(Plantchecker.memento_list(username))
 
 
 # update last_watering date for user plant
@@ -72,7 +84,3 @@ def fertile():
 
 if __name__ == '__main__':
     app.run(port=5000, debug=True)
-
-
-
-

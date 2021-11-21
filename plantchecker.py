@@ -17,8 +17,9 @@ connection = connect(
     database=config['plantbase']['database']
 )
 
+
 class Plantchecker():
-    def get_user_id(login:str = None):
+    def get_user_id(login: str = None):
         if login is None:
             return "Мы вас не узнали. Укажите ваш логин"
         with connection.cursor() as cursor:
@@ -52,10 +53,13 @@ class Plantchecker():
         for name in userplants_list:
             plant_card = {}
             for x in columnlist:
-                columns = ['id','user','plantname','plantspec']
+                columns = ['id', 'user', 'plantname', 'plantspec']
                 if x in columns:
                     with connection.cursor() as cursor:
-                        cursor.execute('select {column} from userplants where user={id} and plantname="{name}"'.format(column=x, id=user_id, name=name))
+                        cursor.execute(
+                            'select {column} from userplants where user={id} and plantname="{name}"'.format(column=x,
+                                                                                                            id=user_id,
+                                                                                                            name=name))
                         data = cursor.fetchall()[0][0]
                         plant_card[x] = data
 
@@ -86,7 +90,7 @@ class Plantchecker():
                                                                                                     user_id=user_id))
                     plant_card[x] = cursor.fetchall()[0][0]
             except Error as e:
-                print(e)
+                return e
         cursor.close()
         plant_card = json.dumps(plant_card, ensure_ascii=False)
 
@@ -144,36 +148,46 @@ class Plantchecker():
                 connection.commit()
                 return 'Растение добавлено в ваш список'
             except Error as e:
-                print(e)
+                return e
 
     def add_plant_water(plantdata: json):
         global connection
         add_data = {}
-        plantdata = json.load(plantdata)
+        plantdata = json.loads(plantdata)
         if 'date' in plantdata:
             date = plantdata['date']
             if type(date) == str and len(date) == 10 and date.find('-') == 2:
                 date = datetime.datetime.strptime(date, "%d-%m-%Y").date()
+            elif date is None:
+                date = datetime.date.today()
             else:
                 return 'Неправильный формат даты. Используйте строку "dd-mm-yyyy".\n'
-        else:
-            date = datetime.date.today()
 
-        plant = plantdata['name'] if 'name' in plantdata else None
-        plant_id = plantdata['id'] if 'id' in plantdata else None
+        plant = plantdata['name'] if plantdata['name'] is not None else ''
+        plant_id = plantdata['id'] if plantdata['id'] is not None else 0
+        if 'user_id' in plantdata and plantdata['user_id'] is not None:
+            user_id = plantdata['user_id']
+        elif 'login' in plantdata:
+            login = plantdata['login']
+            user_id = Plantchecker.get_user_id(login)
+            if type(user_id) == str:
+                return 'Не нашли такого пользователя'
 
-        if plant is None and plant_id is None:
+        if plant == '' and plant_id == 0:
             return 'Не определили растение, которое вы полили\n'
 
         with connection.cursor() as cursor:
             cursor.execute(
                 '''select last_watering,water_freq_summer, water_freq_winter from userplants 
-                         where id = "{id}" or plantname = "{name}"'''.format(id=plant_id, name=plant))
+                         where (id = "{id}" or plantname = "{name}") and user ={user_id}'''.format(id=plant_id,
+                                                                                                   name=plant,
+                                                                                                   user_id=user_id))
             add_data['id'] = plant_id
             add_data['name'] = plant
             add_data['date'] = date.strftime("%d-%m-%Y")
+            add_data['user'] = user_id
             add_string = '''update userplants set last_watering = %(date)s, 
-                                    next_water= %(next_date)s where id = %(id)s or plantname = %(name)s'''
+                                    next_water= %(next_date)s where (id = %(id)s or plantname = %(name)s) and user = %(user)s'''
 
             plantsql = cursor.fetchall()
             this_month = date.month
@@ -184,10 +198,10 @@ class Plantchecker():
             try:
                 cursor.execute(add_string, add_data)
                 connection.commit()
+                cursor.execute('select plantname from userplants where id={id} and user={user}'.format(id=plant_id,user=user_id))
+                plant = cursor.fetchall()
                 cursor.close()
-                if plant is None:
-                    return 'Событие зафиксировано, растение id:{id} полито {date}\n'.format(id=plant_id, date=str(date))
-                return 'Событие зафиксировано, растение {plant} полито {date}\n'.format(plant=plant, date=str(date))
+                return 'Событие зафиксировано, растение {plant} полито {date}\n'.format(plant=plant[0][0], date=str(date))
 
             except Error as e:
                 return 'Произошла ошибка - ' + str(e) + '\n'
@@ -195,32 +209,42 @@ class Plantchecker():
     def add_plant_fertile(plantdata: json):
         global connection
         add_data = {}
-        plantdata = json.load(plantdata)
+        plantdata = json.loads(plantdata)
         if 'date' in plantdata:
             date = plantdata['date']
             if type(date) == str and len(date) == 10 and date.find('-') == 2:
                 date = datetime.datetime.strptime(date, "%d-%m-%Y").date()
-
+            elif date is None:
+                date = datetime.date.today()
             else:
                 return 'Неправильный формат даты. Используйте строку "dd-mm-yyyy".\n'
-        else:
-            date = datetime.date.today()
 
-        plant = plantdata['name'] if 'name' in plantdata else None
-        plant_id = plantdata['id'] if 'id' in plantdata else None
+        plant = plantdata['name'] if plantdata['name'] is not None else ''
+        plant_id = plantdata['id'] if plantdata['id'] is not None else 0
+        if 'user_id' in plantdata and plantdata['user_id'] is not None:
+            user_id = plantdata['user_id']
+        elif 'login' in plantdata:
+            login = plantdata['login']
+            user_id = Plantchecker.get_user_id(login)
+            if type(user_id) == str:
+                return 'Не нашли такого пользователя'
 
-        if plant is None and plant_id is None:
-            return 'Не определили растение, которое вы удобрили.\n'
+        if plant == '' and plant_id == 0:
+            return 'Не определили растение, которое вы удобрили\n'
 
         with connection.cursor() as cursor:
             cursor.execute(
                 '''select last_fertiling,fertile_freq_summer, fertile_freq_winter from userplants 
-                         where id = "{id}" or plantname = "{name}"'''.format(id=plant_id, name=plant))
+                         where (id = "{id}" or plantname = "{name}") and user ={user_id}'''.format(id=plant_id,
+                                                                                                   name=plant,
+                                                                                                   user_id=user_id))
             add_data['id'] = plant_id
             add_data['name'] = plant
             add_data['date'] = date.strftime("%d-%m-%Y")
+            add_data['user'] = user_id
             add_string = '''update userplants set last_fertiling = %(date)s, 
-                                    next_fertile= %(next_date)s where id = %(id)s or plantname = %(name)s'''
+                                    next_fertile= %(next_date)s where (id = %(id)s 
+                                    or plantname = %(name)s) and user = %(user)s'''
 
             plantsql = cursor.fetchall()
             this_month = date.month
@@ -231,14 +255,34 @@ class Plantchecker():
             try:
                 cursor.execute(add_string, add_data)
                 connection.commit()
+                cursor.execute('select plantname from userplants where id={id} and user={user}'.format(id=plant_id,
+                                                                                                       user=user_id))
+                plant = cursor.fetchall()
                 cursor.close()
-                if plant is None:
-                    return 'Событие зафиксировано, растение id:{id} удобрено {date}\n'.format(id=plant_id,
-                                                                                              date=str(date))
-                return 'Событие зафиксировано, растение {plant} удобрено {date}\n'.format(plant=plant, date=str(date))
+                return 'Событие зафиксировано, растение {plant} удобрено {date}\n'.format(plant=plant[0][0],
+                                                                                          date=str(date))
 
             except Error as e:
                 return 'Произошла ошибка - ' + str(e) + '\n'
+
+    def memento_list(login:str = None):
+        global connection
+        user_id = Plantchecker.get_user_id(login)
+        if type(user_id) == str:
+            return 'Не нашли такого пользователя'
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute('select id, plantname, next_water, next_fertile from userplants where user={id}'.format(id=user_id))
+                plantlist = cursor.fetchall()
+            cursor.close()
+            if len(plantlist) !=0:
+                memento_list = json.dumps(plantlist, ensure_ascii=False)
+                return memento_list
+            else:
+                return 'У вас нет растений'
+
+        except Error as e:
+            return 'Произошла ошибка - ' + str(e) + '\n'
 
     def delete_plant(login: str = None, plantname: str = None, **kwargs):
         global connection
@@ -248,18 +292,24 @@ class Plantchecker():
         if type(user_id) == str:
             user_id = 0
 
-        plant_id = kwargs.get("plant_id", default=None) if len(kwargs) !=0 else 0
+        plant_id = kwargs.get("plant_id", default=None) if len(kwargs) != 0 else 0
 
         with connection.cursor() as cursor:
-            cursor.execute('select plantname from userplants where user="{id}" and (plantname="{plantname}" or id={plant_id})'.format(plantname=plantname, id=user_id, plant_id=plant_id))
+            cursor.execute(
+                'select plantname from userplants where user="{id}" and (plantname="{plantname}" or id={plant_id})'.format(
+                    plantname=plantname, id=user_id, plant_id=plant_id))
             plantlist = [''.join(x) for x in cursor.fetchall()]
 
             if len(plantlist) == 0:
                 return "Растение не существует"
 
-            cursor.execute('delete from userplants where user="{id}" and (plantname="{plantname}" or id="{plant_id}")'.format(plantname=plantname, id=user_id, plant_id=plant_id))
+            cursor.execute(
+                'delete from userplants where user="{id}" and (plantname="{plantname}" or id="{plant_id}")'.format(
+                    plantname=plantname, id=user_id, plant_id=plant_id))
             connection.commit()
-            cursor.execute('select plantname from userplants where user="{id}" and (plantname="{plantname}" or id={plant_id})'.format(plantname=plantname, id=user_id, plant_id=plant_id))
+            cursor.execute(
+                'select plantname from userplants where user="{id}" and (plantname="{plantname}" or id={plant_id})'.format(
+                    plantname=plantname, id=user_id, plant_id=plant_id))
 
             plantlist = [''.join(x) for x in cursor.fetchall()]
         cursor.close()
@@ -291,6 +341,7 @@ class Plantchecker():
 
 if __name__ == '__main__':
     pass
+
     # path = os.path.abspath('test.json')
     # with open(path) as file:
     #     print(Plantchecker.add_plant_fertile(file))
