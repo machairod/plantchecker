@@ -107,8 +107,8 @@ def memento(message):
     response = requests.get(memento_url)
     mem_list = json.loads(response.json())
 
-    water_msg = '*Растения, требующие полива:*\n\n'
-    fertile_msg = '*Растения, требующие удобрения:*\n\n'
+    water_msg = '*MEMENTO*\n*Растения, требующие полива:*\n'
+    fertile_msg = '*Растения, требующие удобрения:*\n'
     end_msg = 'растений нет.'
     tomorrow = datetime.date.today() + datetime.timedelta(1)
 
@@ -123,31 +123,40 @@ def memento(message):
     waterall = 'waterall-' + str(user_id) + '-' + ('-'.join(water_id))
     fertileall = 'fertileall-' + str(user_id) + '-' + ('-'.join(fertile_id))
 
+    mem_markup = types.InlineKeyboardMarkup()
+    fertile_btn = None
+    water_btn = None
+
     # сообщение аглушка, если просроченных нет, иначе генерирование сообщения
     if len(water_mem) == 0:
         water_msg += end_msg
-        bot.send_message(user_id, water_msg, parse_mode='Markdown')
     else:
         for i in water_mem:
             water_msg += i + ' - полить ' + water_mem[i][1] + '\n'
         # клавиатура
-        water_markup = types.InlineKeyboardMarkup()
-        water_btn = types.InlineKeyboardButton('Полить все', callback_data=waterall)
-        water_markup.add(water_btn)
-
-        bot.send_message(user_id, water_msg, reply_markup=water_markup, parse_mode='Markdown')
+        water_btn = types.InlineKeyboardButton('Пометить: все политы', callback_data=waterall)
 
     if len(fertile_mem) == 0:
         fertile_msg += end_msg
-        bot.send_message(user_id, fertile_msg, parse_mode='Markdown')
     else:
         for i in fertile_mem:
             fertile_msg += i + ' - удобрить ' + fertile_mem[i][1] + '\n'
-        fertile_markup = types.InlineKeyboardMarkup()
-        fertile_btn = types.InlineKeyboardButton('Удобрить все', callback_data=fertileall)
-        fertile_markup.add(fertile_btn)
 
-        bot.send_message(user_id, fertile_msg, reply_markup=fertile_markup, parse_mode='Markdown')
+        # клавиатура
+        fertile_btn = types.InlineKeyboardButton('Пометить: все удобрены', callback_data=fertileall)
+
+    if fertile_btn is not None:
+        mem_markup.add(fertile_btn)
+    if water_btn is not None:
+        mem_markup.add(water_btn)
+
+    mem_msg = water_msg+'\n\n'+fertile_msg
+    bot.send_message(user_id, mem_msg, reply_markup=mem_markup, parse_mode='Markdown')
+
+@bot.message_handler(commands=['addplant'])
+def add_plant(message):
+    user_id = message.chat.id
+    bot.send_message(user_id,'Для начала выберите имя растения, например, "Горшок на кухне" (не более 50 знаков, текст).')
 
 
 @bot.callback_query_handler(func=lambda call: True)
@@ -205,6 +214,19 @@ def callback_inline(call):
                 plant_card(plant_id, user_id)
             else:
                 bot.send_message(user_id, str(answer) + 'и что-то сломалось')
+
+        if 'fertileall-' in call.data:
+            fertile = call.data.split('-')
+            user_id = fertile[1]
+            for plant_id in fertile[2:]:
+                bot.answer_callback_query(callback_query_id=call.id, show_alert=False, text="Растение удобрено")
+                answer = fertile_plant(plant_id, user_id)
+                if 'удобрено' in answer:
+                    bot.send_message(user_id, str(answer))
+                else:
+                    bot.send_message(user_id, str(answer) + 'и что-то сломалось')
+            bot.delete_message(user_id, call.message.message_id)
+            memento(call.message)
 
         if 'delete-' in call.data:
             bot.answer_callback_query(callback_query_id=call.id, show_alert=True, text="Dump the plant")
