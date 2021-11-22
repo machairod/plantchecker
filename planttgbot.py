@@ -34,6 +34,7 @@ def plant_card(plant_id, user_id):
     response = requests.get(plant_url)
     plantcard = json.loads(response.json())
 
+    # формирование текста карточки
     msg = f"{plantcard['plantname']}, вид: {plantcard['plantspec']}\n\n" \
           f"Следующая дата полива: {plantcard['next_water']}\n" \
           f"Следующая дата удобрения: {plantcard['next_fertile']}\n\n" \
@@ -41,6 +42,7 @@ def plant_card(plant_id, user_id):
           f"Опрыскивание: " + ("рекомендуется" if plantcard["spraying"] == 1 else "не рекомендуется")
 
     bot.send_message(user_id, msg, reply_markup=card_markup)
+
 
 def water_plant(plant_id, login, **kwargs):
     date = None
@@ -50,16 +52,13 @@ def water_plant(plant_id, login, **kwargs):
         plantname = kwargs.get('plantname')
         user_id = kwargs.get('user_id')
 
+    # запрос из апи
     water_url = server + '/plants/water/'
     jdata = {'id': plant_id, 'login': login, 'name': plantname, 'user_id': user_id, 'date': date}
     jdata = json.dumps(jdata, ensure_ascii=False)
-
     response = requests.put(water_url, json=jdata)
-    if 'полито' in response.text:
-        bot.send_message(login, str(response.text))
-        plant_card(plant_id, login)
-    else:
-        bot.send_message(login, str(response.text) + 'и что-то сломалось')
+    return response.text
+
 
 def fertile_plant(plant_id, login, **kwargs):
     date = None
@@ -69,16 +68,13 @@ def fertile_plant(plant_id, login, **kwargs):
         plantname = kwargs.get('plantname')
         user_id = kwargs.get('user_id')
 
+    # запрос из апи
     fertile_url = server + '/plants/fertile/'
     jdata = {'id': plant_id, 'login': login, 'name': plantname, 'user_id': user_id, 'date': date}
     jdata = json.dumps(jdata, ensure_ascii=False)
-
     response = requests.put(fertile_url, json=jdata)
-    if 'удобрено' in response.text:
-        bot.send_message(login, str(response.text))
-        plant_card(plant_id, login)
-    else:
-        bot.send_message(login, str(response.text) + 'и что-то сломалось')
+    return response.text
+
 
 @bot.message_handler(commands=['start'])
 def start_message(message):
@@ -105,54 +101,112 @@ def get_plant_list(message):
 @bot.message_handler(commands=['memento'])
 def memento(message):
     user_id = message.chat.id
+
+    # запрос из апи
     memento_url = server + f'memento/?login={user_id}'
     response = requests.get(memento_url)
+    mem_list = json.loads(response.json())
 
-    memento_list = json.loads(response.json())
-    print(memento_list)
-    today = datetime.datetime.today()
-    water_mem = {}
-    fertile_mem = {}
-    for i in memento_list:
-        water_mem[i[1]] = (i[0],i[2])
-        fertile_mem[i[1]] = (i[0],i[3])
+    water_msg = '*Растения, требующие полива:*\n\n'
+    fertile_msg = '*Растения, требующие удобрения:*\n\n'
+    end_msg = 'растений нет.'
+    tomorrow = datetime.date.today() + datetime.timedelta(1)
 
-    print(water_mem)
-    bot.send_message(user_id, water_mem)
+    # списки растений с просроченной датой полива и удобрения
+    water_mem = {x[1]: (x[0], x[2]) for x in mem_list if datetime.datetime.strptime(x[2], "%d-%m-%Y").date() < tomorrow}
+    fertile_mem = {x[1]: (x[0], x[3]) for x in mem_list if
+                   datetime.datetime.strptime(x[3], "%d-%m-%Y").date() < tomorrow}
+
+    # cписок и строка коллбека для кнопки групповой обработки растений
+    water_id = list(map(lambda x: str(water_mem[x][0]), water_mem))
+    fertile_id = list(map(lambda x: str(fertile_mem[x][0]), fertile_mem))
+    waterall = 'waterall-' + str(user_id) + '-' + ('-'.join(water_id))
+    fertileall = 'fertileall-' + str(user_id) + '-' + ('-'.join(fertile_id))
+
+    # сообщение аглушка, если просроченных нет, иначе генерирование сообщения
+    if len(water_mem) == 0:
+        water_msg += end_msg
+        bot.send_message(user_id, water_msg, parse_mode='Markdown')
+    else:
+        for i in water_mem:
+            water_msg += i + ' - полить ' + water_mem[i][1] + '\n'
+        # клавиатура
+        water_markup = types.InlineKeyboardMarkup()
+        water_btn = types.InlineKeyboardButton('Полить все', callback_data=waterall)
+        water_markup.add(water_btn)
+
+        bot.send_message(user_id, water_msg, reply_markup=water_markup, parse_mode='Markdown')
+
+    if len(fertile_mem) == 0:
+        fertile_msg += end_msg
+        bot.send_message(user_id, fertile_msg, parse_mode='Markdown')
+    else:
+        for i in fertile_mem:
+            fertile_msg += i + ' - удобрить ' + fertile_mem[i][1] + '\n'
+        fertile_markup = types.InlineKeyboardMarkup()
+        fertile_btn = types.InlineKeyboardButton('Удобрить все', callback_data=fertileall)
+        fertile_markup.add(fertile_btn)
+
+        bot.send_message(user_id, fertile_msg, reply_markup=fertile_markup, parse_mode='Markdown')
 
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_inline(call):
     if call.message:
-        if "card" in call.data:
+        if "card-" in call.data:
             carddata = call.data.split('-')
             user_id = carddata[2]
             plant_id = carddata[1]
             bot.delete_message(call.message.chat.id, call.message.message_id)
             plant_card(plant_id, user_id)
 
+        # не добавляй гребанный дефис, чтобы опять все не уронить!!!!!
         if 'list' in call.data:
-            get_plant_list(call.message)
+            message = call.message
+            get_plant_list(message)
             bot.delete_message(call.message.chat.id, call.message.message_id)
             # get_plant_list(call.message)
 
-        if 'water' in call.data:
+        if 'water-' in call.data:
             water = call.data.split("-")
             plant_id = water[1]
             user_id = call.message.chat.id
             bot.answer_callback_query(callback_query_id=call.id, show_alert=False, text="Растение полито")
             bot.delete_message(user_id, call.message.message_id)
-            water_plant(plant_id, user_id)
+            answer = water_plant(plant_id, user_id)
+            if 'полито' in answer:
+                bot.send_message(user_id, str(answer))
+                plant_card(plant_id, user_id)
+            else:
+                bot.send_message(user_id, str(answer) + 'и что-то сломалось')
 
-        if 'fertile' in call.data:
+        if 'waterall-' in call.data:
+            water = call.data.split('-')
+            user_id = water[1]
+            for plant_id in water[2:]:
+                bot.answer_callback_query(callback_query_id=call.id, show_alert=False, text="Растение полито")
+                answer = water_plant(plant_id, user_id)
+                if 'полито' in answer:
+                    bot.send_message(user_id, str(answer))
+                else:
+                    bot.send_message(user_id, str(answer) + 'и что-то сломалось')
+            bot.delete_message(user_id, call.message.message_id)
+            memento(call.message)
+
+        if 'fertile-' in call.data:
             fertile = call.data.split("-")
             plant_id = fertile[1]
             user_id = call.message.chat.id
-            bot.answer_callback_query(callback_query_id=call.id, show_alert=False, text="Растение полито")
+            bot.answer_callback_query(callback_query_id=call.id, show_alert=False, text="Растение удобрено")
             bot.delete_message(user_id, call.message.message_id)
-            fertile_plant(plant_id, user_id)
+            answer = fertile_plant(plant_id, user_id)
+            if 'удобрено' in answer:
+                bot.send_message(user_id, str(answer))
+                plant_card(plant_id, user_id)
+            else:
+                bot.send_message(user_id, str(answer) + 'и что-то сломалось')
 
-        if 'delete' in call.data:
+        if 'delete-' in call.data:
             bot.answer_callback_query(callback_query_id=call.id, show_alert=True, text="Dump the plant")
 
 
