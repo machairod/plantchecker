@@ -31,6 +31,20 @@ class Plantchecker():
         else:
             return user_id[0][0]
 
+    def get_plantspec(login:str = None):
+        global connection
+        global path
+        user_id = Plantchecker.get_user_id(login)
+        if type(user_id)==str:
+            return user_id
+
+        plantspec_json = os.path.join(path, 'plantspecies.json')
+        with open(plantspec_json, 'r') as plantspecies:
+            plantspec = json.load(plantspecies)
+            plantspec = json.dumps(plantspec, ensure_ascii=False)
+
+        return plantspec
+
     def check_user_plants(login: str = None):
         global connection
         if login is None:
@@ -70,12 +84,9 @@ class Plantchecker():
 
     def user_plantcard(plant_id: int = 0, login: str = None):
         global connection
-        if login is None:
-            return ("Мы вас не узнали. Укажите ваш логин")
-        with connection.cursor() as cursor:
-            cursor.execute('select id from users where login = "{login}"'.format(login=login))
-            user_id = cursor.fetchone()
-            user_id = user_id[0]
+        user_id = Plantchecker.get_user_id(login)
+        if type(user_id)== str:
+            return user_id
 
         with connection.cursor() as cursor:
             try:
@@ -98,8 +109,10 @@ class Plantchecker():
 
     def add_user_plant(login: str, plantname: str, plantspec: str, last_watering: str = None):
         global connection
+        global path
         plant_data = {}
-        with open('plantspecies.json', 'r') as plantspecies:
+        plantspec_json = os.path.join(path, 'plantspecies.json')
+        with open(plantspec_json, 'r') as plantspecies:
             plant_dict = json.load(plantspecies)
         plantspec = plantspec.lower()
         if plantspec not in plant_dict:

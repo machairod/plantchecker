@@ -5,23 +5,24 @@ app = Flask(__name__)
 app.config['JSON_AS_ASCII'] = False
 
 
-@app.route('/')
+@app.route('/', methods=['GET'])
 def index():
-    return 'Plantchecker API'
+    if request.method == 'GET':
+        username = request.args.get('login', default=None)
+        if username is not None:
+            return jsonify(Plantchecker.get_plantspec(username))
+    return 'Hi, its Plantchecker - your houseplant care reminder bot'
 
 
 # create user acc whet bot started
-@app.route('/users/')
+@app.route('/users/', methods=['POST', 'GET'])
 def login():
     if request.method == 'POST':
         json = request.get_json()
         return Plantchecker.add_user(json)
-    elif request.method == 'GET':
-        username = request.args.get('login', default=None)
-        if username is None:
-            return 'Checking users accounts here'
-        else:
-            return jsonify(Plantchecker.check_user(username))
+
+    else:
+        return 'Checking users accounts here'
 
 
 # create user plant with spec and last watering and last fertiling dates
