@@ -86,7 +86,7 @@ def plant_type_list(message):
 
 
 @bot.message_handler(commands=['start'])
-def start_message(message):
+def start_and_add_user(message):
     name = message.from_user.first_name if message.from_user.first_name is not None else message.from_user.username
     bot.send_message(message.chat.id, f'Привет, {name}, я бот для своевременного ухода за растениями.')
 
@@ -164,50 +164,86 @@ def memento(message: telebot.types.Message):
 
 
 @bot.message_handler(commands=['addplant'])
-def add_plant(message: telebot.types.Message):
-    # bot.send_message(message.chat.id, "Нужно выбрать название растения. Например 'Кактус на кухне'", reply_markup=telebot.types.ForceReply())
-    bot.send_message(message.chat.id, "Нужно выбрать вид растения. Например 'Кактус на кухне'",
+def add_plant_step1(message: telebot.types.Message):
+    bot.send_message(message.chat.id, "Нужно выбрать название растения. Например 'Кактус на кухне'",
                      reply_markup=telebot.types.ForceReply())
 
 
 @bot.message_handler(content_types=['text'])
 def reply_text(message: telebot.types.Message):
     if message.reply_to_message:
+        # add plant step 2
         if "название растения" in message.reply_to_message.text:
-            answer = message.text
-            bot.send_message(message.chat.id, f"Отлично, название растения: {answer}")
-            bot.send_message(message.chat.id,
-                             "Теперь нужно выбрать вид растения. Набери первые 3-5 букв, чтобы я предложил варианты из своей базы. Осторожно, я не переживу грамматической ошибки)",
+            plantname = message.text.capitalize()
+            bot.send_message(message.chat.id, f"Отлично, значит назовем его: {plantname}.\n\nТеперь нужно выбрать вид "
+                                              f"растения. Набери первые 3-5 букв, чтобы я предложил варианты "
+                                              "из своей базы. Осторожно, я не переживу грамматической ошибки)",
                              reply_markup=telebot.types.ForceReply())
+
+        # add plant step 3
         elif "вид растения" in message.reply_to_message.text:
             user_id = message.chat.id
             plant_types = plant_type_list(message)
+            plantname = message.reply_to_message.text
+            start = plantname.find(':') + 2
+            end = plantname.find(".")
+            plantname = plantname[start:end]
 
             answer = message.text
-            msg = f"Ок, ты предложил: {answer}, и я нашел такие варианты:"
+
             types_markup = types.InlineKeyboardMarkup()
             for i in plant_types:
                 if answer in i:
-                    btn = types.InlineKeyboardButton(i, callback_data="type-" + i + "-" + str(user_id))
+                    msg = f"Ок, для '{answer}' я нашел такие варианты:"
+                    btn = types.InlineKeyboardButton(i.capitalize(),
+                                                     callback_data="type-" + plantname + "-" + i + "-" + str(user_id))
                     types_markup.add(btn)
+
             if 'btn' not in locals():
                 plants = list(plant_types.keys())
-                plant = random.choice(plants)
+                plant = [random.choice(plants) for i in range(3)]
 
-                btn = types.InlineKeyboardButton(plant, callback_data="type-" + plant + "-" + str(user_id))
-                types_markup.add(btn)
-                msg = f"На твой вариант: {answer} мне предложить нечего. Давай попробуем это:"
+                for i in plant:
+                    btn = types.InlineKeyboardButton(i.capitalize(),
+                                                     callback_data="type-" + plantname + "-" + i + "-" + str(user_id))
+                    types_markup.add(btn)
+                msg = f"Для '{answer}' я ничего не нашел. Так что выбери один из вариантов ниже, чтобы мы " \
+                      f"могли продолжить: "
 
-            bot.send_message(message.chat.id, msg,
-                             reply_markup=types_markup)
-            # bot.send_message(message.chat.id, "Теперь вспомни, когда это растение последний раз поливали. Отправь дату в формате '01-01-2021', или отправь пробел - и я начну отсчет с сегодняшнего дня.", reply_markup=telebot.types.ForceReply())
+            choose_plant = bot.send_message(message.chat.id, msg,
+                                            reply_markup=types_markup)
+
+        # add plant step 4 and ending
         elif "растение последний раз поливали" in message.reply_to_message.text:
             answer = message.text
-            if len(answer) < 10:
-                bot.send_message(message.chat.id, "Хорошо, значит растение последний раз поливали сегодня")
 
+            if len(answer) == 10 and answer.count('-') == 2:
+                water_date = answer
+                bot.send_message(message.chat.id,
+                                 f"Ок, значит растение последний раз поливали: {answer}\n\nХорошо, я собрал все "
+                                 f"данные. Добавляю новый горшок в базу.")
             else:
-                bot.send_message(message.chat.id, f"Ок, значит растение последний раз поливали: {answer}")
+                water_date = datetime.date.today()
+                bot.send_message(message.chat.id,
+                                 "Хорошо, значит растение последний раз поливали сегодня\n\nХорошо, я собрал все "
+                                 "данные. Добавляю новый горшок в базу.")
+
+            data = message.reply_to_message.text
+            start = data.find('имя: ') + len('имя: ')
+            stop = data.find(',')
+            name = data[start:stop]
+
+            start = data.find('вид: ') + len('вид: ')
+            stop = data.find('.')
+            plant_type = data[start:stop]
+
+            add_plant_data = {'login': message.chat.id, 'plantname': name, 'plantspec': plant_type,
+                              'last_watering': water_date}
+
+            addplant_url = server + 'plants/'
+            add_plant_data = json.dumps(add_plant_data, ensure_ascii=False)
+            addplant = requests.post(addplant_url, json=add_plant_data)
+
         else:
             bot.send_message(message.chat.id, f"Что-то произошло, я не понял команду.", parse_mode="MARKDOWN")
 
@@ -283,10 +319,18 @@ def callback_inline(call: telebot.types.CallbackQuery):
         if 'delete-' in call.data:
             bot.answer_callback_query(callback_query_id=call.id, show_alert=True, text="Dump the plant")
 
+        if 'type-' in call.data:
+            data = call.data.split('-')
+            bot.send_message(call.message.chat.id,
+                             f"Итак, имя: {data[1]}, вид: {data[2]}.\n\nОсталось вспомнить, когда растение последний "
+                             f"раз поливали. Отправь дату в формате '01-01-2021'. Или отправь '1', чтобы я начал "
+                             f"отсчет с сегодняшнего дня",
+                             reply_markup=telebot.types.ForceReply())
+
 
 if __name__ == '__main__':
     try:
         bot.polling(none_stop=True)
 
     except Exception as err:
-        print('Smth wrong! ', err)
+        print('Something wrong! ', err)

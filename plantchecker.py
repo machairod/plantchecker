@@ -47,12 +47,9 @@ class Plantchecker():
 
     def check_user_plants(login: str = None):
         global connection
-        if login is None:
-            return ("Мы вас не узнали. Укажите ваш логин")
-        with connection.cursor() as cursor:
-            cursor.execute('select id from users where login = "{login}"'.format(login=login))
-            user_id = cursor.fetchone()
-            user_id = user_id[0]
+        user_id = Plantchecker.get_user_id(login)
+        if type(user_id) ==str:
+            return user_id
         with connection.cursor() as cursor:
             cursor.execute("""SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE 
         TABLE_SCHEMA = 'plantcheckerDB' AND TABLE_NAME = 'userplants'""")
@@ -107,9 +104,36 @@ class Plantchecker():
 
         return plant_card
 
-    def add_user_plant(login: str, plantname: str, plantspec: str, last_watering: str = None):
+    def add_user_plant(plantjson: json):
         global connection
         global path
+
+        plantdata = json.loads(plantjson)
+        if 'last_watering' in plantdata:
+            last_watering = plantdata['last_watering']
+            if type(last_watering) == str and len(last_watering) == 10 and last_watering.count('-') == 2:
+                last_watering = datetime.datetime.strptime(last_watering, "%d-%m-%Y").date()
+            elif last_watering is None:
+                last_watering = datetime.date.today()
+            else:
+                return 'Неправильный формат даты. Используйте строку "dd-mm-yyyy".\n'
+
+        plantname = plantdata['plantname'] if plantdata['plantname'] is not None else ''
+        plantspec = plantdata['plantspec'] if plantdata['plantspec'] is not None else ''
+
+        if 'user_id' in plantdata and plantdata['user_id'] is not None:
+            user_id = plantdata['user_id']
+        elif 'login' in plantdata:
+            login = plantdata['login']
+            user_id = Plantchecker.get_user_id(login)
+            if type(user_id) == str:
+                return 'Не нашли такого пользователя'
+        else:
+            return 'Не смогли опознать пользователя'
+
+        if plantname == '' or plantspec == '':
+            return 'Не определили растение, которое вы хотите добавить'
+
         plant_data = {}
         plantspec_json = os.path.join(path, 'plantspecies.json')
         with open(plantspec_json, 'r') as plantspecies:
@@ -121,8 +145,8 @@ class Plantchecker():
         if type(last_watering) == str and (len(last_watering) == 10) and last_watering.find('-') == 2:
             plant_data["last_watering"] = last_watering
         elif last_watering is None:
-            date = datetime.date.today()
-            plant_data['last_watering'] = date.strftime("%d-%m-%Y")
+            last_watering = datetime.date.today()
+            plant_data['last_watering'] = last_watering.strftime("%d-%m-%Y")
         else:
             return 'Неправильный формат даты. Используйте "dd-mm-yyyy".\n'
 
@@ -135,28 +159,20 @@ class Plantchecker():
         plant_data["fertile_freq_winter"] = plant_dict[plantspec]['fertile_winter']
         plant_data["spraying"] = plant_dict[plantspec]['spraying']
         plant_data["plantname"] = plantname
+        plant_data['user'] = user_id
 
         add_plant = '''insert into userplants (user, plantname, plantspec, last_watering, 
         last_fertiling, water_freq_summer, water_freq_winter, fertile_freq_summer,
          fertile_freq_winter, spraying, light) values (%(user)s, %(plantname)s, %(plantspec)s,
           %(last_watering)s, %(last_fertiling)s, %(water_freq_summer)s, %(water_freq_winter)s,
            %(fertile_freq_summer)s, %(fertile_freq_winter)s, %(spraying)s, %(light)s)'''
-
         with connection.cursor() as cursor:
-            cursor.execute('select id from users where login="{user}"'.format(user=login))
-            user = cursor.fetchall()
-            if len(user) == 0:
-                return 'Не нашли такого пользователя'
-            plant_data['user'] = user[0][0]
-
             try:
-                cursor.execute(
-                    'select * from userplants where id = {id} and plantname = "{plantname}"'
-                    ' and plantspec = "{plantspec}"'.format(
-                        id=user[0][0], plantname=plantname, plantspec=plantspec))
+                cursor.execute('select * from userplants where id = {id} and plantname = "{plantname}"'.format(
+                        id=user_id, plantname=plantname))
                 checkdata = cursor.fetchall()
                 if len(checkdata) != 0:
-                    return "Похоже, это растение вы уже добавили\n"
+                    return "Похоже, растение с таким названием вы уже добавили\n"
                 cursor.execute(add_plant, plant_data)
                 connection.commit()
                 return 'Растение добавлено в ваш список'
