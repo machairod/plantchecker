@@ -39,11 +39,8 @@ def plants():
         else:
             return jsonify(Plantchecker.check_user_plants(username))
     elif request.method == 'DELETE':
-        plantname = request.args.get('plantname', default=None)
-        username = request.args.get('login', default=None)
-        plant_id = request.args.get('plant_id')
-        user_id = request.args.get('user_id')
-        return Plantchecker.delete_plant(plantname, login=username, plant_id=plant_id, user_id=user_id)
+        json = request.get_json()
+        return Plantchecker.delete_plant(json)
     else:
         return 'Lists of users plants.'
 
@@ -51,11 +48,12 @@ def plants():
 @app.route('/plants/<plant_id>', methods=['GET'])
 def plantcard(plant_id):
     if request.method == 'GET':
-        username = request.args.get('login', default=None)
+        username = request.args.get('login', default='')
+        plantname = request.args.get('plantname', default=None)
         if username is None:
             return 'User plant card.'
         else:
-            return jsonify(Plantchecker.user_plantcard(plant_id, username))
+            return jsonify(Plantchecker.user_plantcard(login=username, plant_id=plant_id, plantname=plantname))
 
 @app.route('/memento/', methods=['GET'])
 def memento():

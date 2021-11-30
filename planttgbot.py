@@ -19,19 +19,14 @@ token = config['telegram']['bot-token']
 bot = telebot.TeleBot(token)
 
 
-def plant_card(plant_id, user_id):
-    # клавиатура карточки растения
-    card_markup = types.InlineKeyboardMarkup()
-    list_btn = types.InlineKeyboardButton('Назад к списку', callback_data="list")
-    water_btn = types.InlineKeyboardButton('Полить', callback_data="water-" + str(plant_id))
-    fertile_btn = types.InlineKeyboardButton('Удобрить', callback_data="fertile-" + str(plant_id))
-    delete_btn = types.InlineKeyboardButton('Удалить растение', callback_data="delete-" + str(plant_id))
-    card_markup.add(water_btn, fertile_btn)
-    card_markup.add(list_btn)
-    card_markup.add(delete_btn)
+def plant_card(user_id: int == 0, **kwargs):
+    plantname = kwargs.pop('plantname', None)
+    plant_id = kwargs.pop('plant_id', 0)
 
     # запрос данных растения из базы
     plant_url = server + f"plants/{plant_id}?login={user_id}"
+    if plantname is not None:
+        plant_url = plant_url + f"&plantname={plantname}"
     response = requests.get(plant_url)
     plantcard = json.loads(response.json())
 
@@ -41,6 +36,20 @@ def plant_card(plant_id, user_id):
           f"Следующая дата удобрения: {plantcard['next_fertile']}\n\n" \
           f"Яркость освещения: {plantcard['light']} из 3.\n" \
           f"Опрыскивание: " + ("рекомендуется" if plantcard["spraying"] == 1 else "не рекомендуется")
+
+    if plant_id == 0:
+        plant_id = plantcard['id']
+
+    # клавиатура карточки растения
+    card_markup = types.InlineKeyboardMarkup()
+    list_btn = types.InlineKeyboardButton('Назад к списку', callback_data="list")
+    water_btn = types.InlineKeyboardButton('Полить', callback_data="water-" + str(plant_id))
+    fertile_btn = types.InlineKeyboardButton('Удобрить', callback_data="fertile-" + str(plant_id))
+    delete_btn = types.InlineKeyboardButton('Удалить', callback_data="delete1-" + str(plant_id) + "-" + plantcard[
+        'plantname'] + "-" + plantcard['plantspec'])
+    card_markup.add(water_btn, fertile_btn)
+    card_markup.add(list_btn)
+    card_markup.add(delete_btn)
 
     bot.send_message(user_id, msg, reply_markup=card_markup)
 
@@ -169,6 +178,7 @@ def add_plant_step1(message: telebot.types.Message):
                      reply_markup=telebot.types.ForceReply())
 
 
+# addplant step 2 and other (ave telebot)
 @bot.message_handler(content_types=['text'])
 def reply_text(message: telebot.types.Message):
     if message.reply_to_message:
@@ -223,26 +233,27 @@ def reply_text(message: telebot.types.Message):
                                  f"Ок, значит растение последний раз поливали: {answer}\n\nХорошо, я собрал все "
                                  f"данные. Добавляю новый горшок в базу.")
             else:
-                water_date = datetime.date.today()
+                water_date = datetime.date.today().strftime('%d-%m-%Y')
                 bot.send_message(message.chat.id,
-                                 "Хорошо, значит растение последний раз поливали сегодня\n\nХорошо, я собрал все "
+                                 "Ок, значит растение последний раз поливали сегодня\n\nХорошо, я собрал все "
                                  "данные. Добавляю новый горшок в базу.")
 
             data = message.reply_to_message.text
             start = data.find('имя: ') + len('имя: ')
-            stop = data.find(',')
-            name = data[start:stop]
+            stop = data.find(', вид')
+            plantname = data[start:stop]
 
             start = data.find('вид: ') + len('вид: ')
             stop = data.find('.')
             plant_type = data[start:stop]
 
-            add_plant_data = {'login': message.chat.id, 'plantname': name, 'plantspec': plant_type,
+            add_plant_data = {'login': message.chat.id, 'plantname': plantname, 'plantspec': plant_type,
                               'last_watering': water_date}
 
             addplant_url = server + 'plants/'
             add_plant_data = json.dumps(add_plant_data, ensure_ascii=False)
             addplant = requests.post(addplant_url, json=add_plant_data)
+            plant_card(plantname=plantname, user_id=message.chat.id)
 
         else:
             bot.send_message(message.chat.id, f"Что-то произошло, я не понял команду.", parse_mode="MARKDOWN")
@@ -256,7 +267,7 @@ def callback_inline(call: telebot.types.CallbackQuery):
             user_id = carddata[2]
             plant_id = carddata[1]
             bot.delete_message(call.message.chat.id, call.message.message_id)
-            plant_card(plant_id, user_id)
+            plant_card(user_id, plant_id=plant_id)
 
         # не добавляй гребанный дефис, чтобы опять все не уронить!!!!!
         if 'list' in call.data:
@@ -273,7 +284,7 @@ def callback_inline(call: telebot.types.CallbackQuery):
             answer = water_plant(plant_id, user_id)
             if 'полито' in answer:
                 bot.send_message(user_id, str(answer))
-                plant_card(plant_id, user_id)
+                plant_card(user_id, plant_id=plant_id)
             else:
                 bot.send_message(user_id, str(answer) + 'и что-то сломалось')
 
@@ -299,7 +310,7 @@ def callback_inline(call: telebot.types.CallbackQuery):
             answer = fertile_plant(plant_id, user_id)
             if 'удобрено' in answer:
                 bot.send_message(user_id, str(answer))
-                plant_card(plant_id, user_id)
+                plant_card(user_id, plant_id=plant_id)
             else:
                 bot.send_message(user_id, str(answer) + 'и что-то сломалось')
 
@@ -316,8 +327,43 @@ def callback_inline(call: telebot.types.CallbackQuery):
             bot.delete_message(user_id, call.message.message_id)
             memento(call.message)
 
-        if 'delete-' in call.data:
-            bot.answer_callback_query(callback_query_id=call.id, show_alert=True, text="Dump the plant")
+        if 'delete1-' in call.data:
+            delete_list = call.data.split("-")
+            plant_id = delete_list[1]
+            user_id = call.message.chat.id
+            plantname = delete_list[2]
+            plantspec = delete_list[3]
+            del_markup = types.InlineKeyboardMarkup()
+            no_btn = types.InlineKeyboardButton('Нет', callback_data="list")
+            yes_btn = types.InlineKeyboardButton('Да', callback_data="delete2-" + plant_id + "-" + str(user_id) + "-" + plantname)
+            del_markup.add(yes_btn, no_btn)
+
+            bot.edit_message_text(
+                f'Вы уверены что хотите удалить {plantname} (вид: {plantspec}) ? \n\nЭто действие будет '
+                f'невозможно отменить', chat_id=user_id, message_id=call.message.message_id,
+                reply_markup=del_markup)
+
+        if 'delete2-' in call.data:
+            delete_list = call.data.split("-")
+            plant_id = delete_list[1]
+            user_id = delete_list[2]
+            plantname = delete_list[3]
+
+            delete_plant_data = {'login': user_id, 'plantname': plantname, 'plant_id': plant_id}
+            bot.delete_message(user_id, call.message.message_id)
+
+            deleteplant_url = server + 'plants/'
+            delete_plant_data = json.dumps(delete_plant_data, ensure_ascii=False)
+            deleteplant = requests.delete(deleteplant_url, json=delete_plant_data)
+            deleteplant = deleteplant.text
+
+            if 'удалено' in deleteplant:
+                bot.answer_callback_query(callback_query_id=call.id, show_alert=False, text="Растение удалено")
+                bot.send_message(user_id, deleteplant)
+                get_plant_list(call.message)
+            else:
+                bot.send_message(user_id, str(deleteplant) + 'и что-то сломалось')
+
 
         if 'type-' in call.data:
             data = call.data.split('-')
